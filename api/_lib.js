@@ -34,6 +34,7 @@ function memExec([cmd, k, ...a]) {
     }
     case "DEL": return mem.delete(k) ? 1 : 0;
     case "EXPIRE": if (e) e.exp = Date.now() + Number(a[0]) * 1000; return e ? 1 : 0;
+    case "INCR": { const n = Number(e ? e.v : 0) + 1; if (e) e.v = String(n); else mem.set(k, { v: String(n), exp: 0 }); return n; }
     case "HSET": memHash(k).v.set(a[0], a[1]); return 1;
     case "HINCRBY": { const h = memHash(k); const n = Number(h.v.get(a[0]) || 0) + Number(a[1]); h.v.set(a[0], String(n)); return n; }
     case "HDEL": return e && e.v.delete(a[0]) ? 1 : 0;

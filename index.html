@@ -2,81 +2,598 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#fff8ec">
-<title>Salle de Jeux</title>
-<meta name="description" content="Des jeux de soirée à jouer entre amis, chacun sur son téléphone.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fff5f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nous Deux">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>Nous Deux</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Patrick+Hand&display=swap" rel="stylesheet">
-<script>
-  // Anciens liens d'invitation de Croquis Express (/?r=CODE) → redirection vers le jeu
-  (function(){ var r=new URLSearchParams(location.search).get("r"); if(r) location.replace("/croquis/?r="+encodeURIComponent(r)); })();
-</script>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <style>
-  :root{ --paper:#fff8ec; --ink:#2b2340; --soft:#6b6385; --pop:#ff5d73; --purple:#a259ff; --sun:#ffc145; --mint:#2ec4b6; --sky:#4f7cff; }
+  :root{
+    --bg:#fff5f7; --ink:#3a1f33; --soft:#8a6b7e; --line:#f1d9e1;
+    --rose:#e8466c; --blush:#ffd6e0; --peach:#ffc8a8; --plum:#7b2d5b; --mint:#3bb7a0; --sun:#ffd166; --card:#fff;
+  }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;min-height:100%;background:var(--paper);color:var(--ink);font-family:'Fredoka',system-ui,sans-serif}
-  body{background-image:radial-gradient(#eadfcb 1px,transparent 1px);background-size:22px 22px}
-  main{max-width:880px;margin:0 auto;padding:28px 16px 40px}
-  header{text-align:center;margin-bottom:24px}
-  h1{font-size:44px;margin:0;line-height:1;letter-spacing:-.5px}
-  h1 span{color:var(--pop)}
-  .tag{font-family:'Patrick Hand',cursive;font-size:22px;color:var(--soft);margin:10px 0 0}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
-  .game{display:flex;flex-direction:column;background:#fff;border:2px solid var(--ink);border-radius:20px;box-shadow:5px 5px 0 var(--ink);
-        overflow:hidden;text-decoration:none;color:inherit;transition:transform .12s, box-shadow .12s}
-  .game:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--ink)}
-  .game:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink)}
-  .cover{height:150px;display:flex;align-items:center;justify-content:center;font-size:76px;border-bottom:2px solid var(--ink);position:relative;overflow:hidden}
-  .cover.croquis{background:var(--sun)}
-  .cover.karaoke{background:var(--purple)}
-  .cover small{position:absolute;font-size:30px;opacity:.85}
-  .body{padding:16px 18px 18px;display:flex;flex-direction:column;flex:1}
-  .body h2{margin:0 0 4px;font-size:26px}
-  .body p{margin:4px 0 12px;color:var(--soft);line-height:1.4;flex:1}
-  .meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-  .pill{border:2px solid var(--ink);border-radius:999px;padding:2px 10px;font-weight:600;font-size:13px;background:#fff}
-  .play{display:block;text-align:center;border:2px solid var(--ink);border-radius:14px;padding:12px;font-weight:600;font-size:18px;box-shadow:3px 3px 0 var(--ink);color:#fff}
-  .croquis .play,.play.croquis{background:var(--pop)}
-  .play.karaoke{background:var(--purple)}
-  .soon{border-style:dashed;box-shadow:none;background:transparent;align-items:center;justify-content:center;text-align:center;padding:30px 20px;color:var(--soft);min-height:200px}
-  .soon:hover{transform:none;box-shadow:none}
-  .soon b{font-size:40px;display:block;margin-bottom:6px}
-  footer{text-align:center;color:var(--soft);font-size:14px;margin-top:30px}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:'Quicksand',system-ui,sans-serif;font-weight:500}
+  body{background-image:radial-gradient(#f6dbe3 1.2px,transparent 1.2px);background-size:24px 24px}
+  button,input,textarea{font-family:inherit;color:inherit}
+  #app{max-width:560px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
+  .page{flex:1;padding:12px 16px calc(96px + env(safe-area-inset-bottom))}
+  .solo{flex:1;display:flex;flex-direction:column;justify-content:center;padding:24px 16px}
+  h1{font-size:40px;margin:0;line-height:1.05}
+  h2{font-size:22px;margin:0 0 8px}
+  p{margin:6px 0;color:var(--soft);line-height:1.45}
+  .hand{font-family:'Caveat',cursive;font-weight:700}
+  .heart{color:var(--rose)}
+  .center{text-align:center}
+  .hint{font-size:14px;color:var(--soft)}
+
+  /* en-tête et navigation */
+  .top{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+       background:rgba(255,245,247,.92);backdrop-filter:blur(8px);border-bottom:2px solid var(--line)}
+  .logo{font-family:'Caveat',cursive;font-size:32px;font-weight:700;line-height:1}
+  .logo span{color:var(--rose);display:inline-block;animation:beat 1.6s infinite}
+  @keyframes beat{0%,100%{transform:scale(1)}15%{transform:scale(1.25)}30%{transform:scale(1)}45%{transform:scale(1.15)}}
+  .icon-btn{border:2px solid var(--ink);background:#fff;border-radius:12px;width:42px;height:42px;font-size:20px;cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
+  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;justify-content:center;background:#fff;border-top:2px solid var(--ink);padding-bottom:env(safe-area-inset-bottom)}
+  .tabs div{display:flex;width:100%;max-width:560px}
+  .tabs button{flex:1;border:0;background:none;padding:8px 2px 10px;cursor:pointer;font-size:12px;font-weight:700;color:var(--soft);position:relative}
+  .tabs button b{display:block;font-size:24px;line-height:1.2;filter:grayscale(.6);opacity:.75}
+  .tabs button.on{color:var(--rose)}
+  .tabs button.on b{filter:none;opacity:1;transform:scale(1.1)}
+  .badge{position:absolute;top:4px;left:calc(50% + 8px);background:var(--rose);color:#fff;border-radius:999px;font-size:11px;min-width:18px;height:18px;line-height:18px;padding:0 5px;border:2px solid #fff}
+
+  /* éléments */
+  .card{background:var(--card);border:2px solid var(--ink);border-radius:20px;padding:16px;box-shadow:4px 4px 0 var(--ink);margin:12px 0}
+  .card.rose{background:var(--blush)}
+  .card.peach{background:#ffe7d9}
+  .lbl{font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:.6px;color:var(--plum);margin:0 0 8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .btn{appearance:none;display:block;width:100%;text-align:center;border:2px solid var(--ink);background:var(--rose);color:#fff;font-weight:700;font-size:17px;
+       padding:13px 16px;border-radius:14px;box-shadow:3px 3px 0 var(--ink);cursor:pointer;transition:transform .05s}
+  .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .btn:disabled{opacity:.5}
+  .btn.light{background:#fff;color:var(--ink)}
+  .btn.plum{background:var(--plum)}
+  .btn.mint{background:var(--mint)}
+  .btn.sun{background:var(--sun);color:var(--ink)}
+  .btn.small{display:inline-block;width:auto;font-size:14px;padding:7px 12px;box-shadow:2px 2px 0 var(--ink)}
+  .link{background:none;border:0;color:var(--rose);font-weight:700;cursor:pointer;padding:0;font-size:14px}
+  input[type=text],input[type=password],input[type=number],input[type=date],textarea{width:100%;min-width:0;font-size:17px;font-weight:600;padding:11px 12px;border:2px solid var(--ink);border-radius:12px;background:#fff}
+  textarea{resize:vertical;min-height:90px;line-height:1.4}
+  input:focus,textarea:focus{outline:3px solid var(--blush)}
+  .row{display:flex;gap:8px;align-items:center}
+  .row > .grow{flex:1}
+  .stack{display:flex;flex-direction:column;gap:10px}
+  .seg{display:flex;border:2px solid var(--ink);border-radius:12px;overflow:hidden;background:#fff}
+  .seg button{flex:1;border:0;background:none;font-weight:700;font-size:14px;padding:10px 4px;cursor:pointer}
+  .seg button+button{border-left:2px solid var(--ink)}
+  .seg button.on{background:var(--ink);color:#fff}
+  .chips{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:none;border:2px solid var(--ink);background:#fff;border-radius:999px;padding:6px 12px;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap}
+  .chip.on{background:var(--ink);color:#fff}
+  .x{border:0;background:none;color:var(--soft);font-size:20px;cursor:pointer;padding:0 4px;line-height:1}
+
+  /* accueil */
+  .counter{text-align:center}
+  .counter .big{font-size:56px;font-weight:700;line-height:1;color:var(--rose)}
+  .counter .ymd{font-family:'Caveat',cursive;font-size:30px;font-weight:700;margin:6px 0 2px}
+  .milestone{display:flex;gap:10px;align-items:center;background:#fff;border:2px dashed var(--rose);border-radius:14px;padding:8px 12px;margin-top:10px;text-align:left;font-size:15px}
+  .milestone b{font-size:24px}
+  .moods{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .mood{background:#fff;border:2px solid var(--ink);border-radius:16px;padding:10px;text-align:center;cursor:default}
+  .mood.me{cursor:pointer;background:#fffaf0}
+  .mood .e{font-size:44px;line-height:1.1}
+  .mood .n{font-weight:700}
+  .mood .t{font-size:13px;color:var(--soft);min-height:18px}
+  .lastnote{font-family:'Caveat',cursive;font-size:28px;line-height:1.15;margin:4px 0;word-break:break-word}
+  .date{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:2px dashed var(--line)}
+  .date:last-child{border-bottom:0}
+  .date .d{flex:1}
+  .date .when{font-weight:700;font-size:14px;color:var(--plum);text-align:right;white-space:nowrap}
+  .today{color:var(--rose)!important}
+
+  /* petits mots */
+  .quick{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .bubble{max-width:85%;border:2px solid var(--ink);border-radius:18px;padding:10px 14px;margin:10px 0;position:relative;box-shadow:3px 3px 0 var(--ink)}
+  .bubble.me{margin-left:auto;background:var(--blush);border-bottom-right-radius:4px}
+  .bubble.them{background:#fff;border-bottom-left-radius:4px}
+  .bubble .txt{font-family:'Caveat',cursive;font-size:26px;line-height:1.15;white-space:pre-wrap;word-break:break-word}
+  .bubble .meta{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--soft);margin-top:4px}
+  .bubble .hb{border:0;background:none;font-size:20px;cursor:pointer;padding:0;filter:grayscale(1);opacity:.5}
+  .bubble .hb.on{filter:none;opacity:1}
+  .bubble .hs{position:absolute;bottom:-12px;left:-10px;font-size:22px}
+  .new{display:inline-block;background:var(--rose);color:#fff;border-radius:999px;font-size:11px;padding:1px 7px;font-weight:700}
+
+  /* listes */
+  .item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:2px dashed var(--line)}
+  .item:last-child{border-bottom:0}
+  .item .ck{width:26px;height:26px;flex:none;border:2px solid var(--ink);border-radius:8px;background:#fff;cursor:pointer;font-size:16px;line-height:20px;text-align:center;padding:0}
+  .item.done .ck{background:var(--mint);color:#fff}
+  .item .tx{flex:1;font-size:17px;font-weight:600;word-break:break-word}
+  .item.done .tx{text-decoration:line-through;color:var(--soft)}
+  .who{font-size:12px;font-weight:700;border-radius:999px;padding:1px 7px;color:#fff;flex:none}
+  .who.dali{background:#4f7cff}.who.rahma{background:var(--rose)}
+
+  /* comptes */
+  .balance{text-align:center}
+  .balance .amt{font-size:40px;font-weight:700;color:var(--plum);line-height:1.1}
+  .exp{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:2px dashed var(--line)}
+  .exp:last-child{border-bottom:0}
+  .exp .d{flex:1;min-width:0}
+  .exp .d b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .exp .a{font-weight:700;white-space:nowrap}
+
+  /* question */
+  .question{font-family:'Caveat',cursive;font-size:34px;font-weight:700;line-height:1.1;text-align:center;margin:8px 0 4px}
+  .answer{background:#fff;border:2px solid var(--ink);border-radius:14px;padding:10px 12px;margin:8px 0}
+  .answer .n{font-weight:700;font-size:14px}
+  .answer .a{font-family:'Caveat',cursive;font-size:24px;line-height:1.15;white-space:pre-wrap;word-break:break-word}
+  .locked{filter:blur(5px);user-select:none}
+
+  /* modales, toasts */
+  .modal{position:fixed;inset:0;background:rgba(58,31,51,.5);display:flex;align-items:flex-end;justify-content:center;z-index:20;animation:fade .15s}
+  .modal .card{width:100%;max-width:560px;margin:0;border-radius:24px 24px 0 0;max-height:92dvh;overflow:auto;padding-bottom:calc(20px + env(safe-area-inset-bottom));animation:up .25s ease-out}
+  @keyframes fade{from{opacity:0}}
+  @keyframes up{from{transform:translateY(40px);opacity:.5}}
+  .emojis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:8px 0 12px}
+  .emojis button{font-size:34px;padding:8px 0;border:2px solid var(--line);border-radius:14px;background:#fff;cursor:pointer}
+  .emojis button.on{border-color:var(--ink);background:var(--blush)}
+  .toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translate(-50%,30px);opacity:0;background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;
+         font-weight:600;max-width:calc(100% - 32px);text-align:center;transition:all .25s;z-index:30;pointer-events:none}
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+  .floater{position:fixed;font-size:30px;pointer-events:none;z-index:25;animation:floatup 1.8s ease-out forwards}
+  @keyframes floatup{0%{transform:translateY(0) scale(.5);opacity:0}20%{opacity:1;transform:translateY(-30px) scale(1.1)}100%{transform:translateY(-45vh) scale(.9);opacity:0}}
+  .pick{font-family:'Caveat',cursive;font-size:36px;font-weight:700;text-align:center;margin:12px 0;line-height:1.1}
+  .shake{animation:shake .35s}
+  @keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+  details summary{cursor:pointer;font-weight:700;color:var(--rose);list-style:none;margin-top:6px}
+  details summary::-webkit-details-marker{display:none}
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <h1>Salle de <span>Jeux</span> 🎲</h1>
-    <p class="tag">Des jeux de soirée entre amis : chacun joue sur son téléphone !</p>
-  </header>
+<div id="app"><p class="center" style="margin-top:42vh">💕</p></div>
 
-  <div class="grid">
-    <a class="game" href="/croquis/">
-      <div class="cover croquis">✏️<small style="left:22px;top:18px">🎨</small><small style="right:24px;bottom:14px">⏱️</small></div>
-      <div class="body">
-        <h2>Croquis Express</h2>
-        <p>Tout le monde dessine le même mot le plus vite possible, un seul devine… et les dessins les plus rapides passent en premier !</p>
-        <div class="meta"><span class="pill">👥 3 à 8 joueurs</span><span class="pill">⏳ 10–20 min</span></div>
-        <span class="play croquis">Jouer</span>
+<script>
+/* ================= Outils ================= */
+const API="/api/nous";
+const app=document.getElementById("app");
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+const LS={
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+const pad=n=>String(n).padStart(2,"0");
+const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parseDay=s=>{ const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); };
+const todayDate=()=>{ const d=new Date(); return new Date(d.getFullYear(),d.getMonth(),d.getDate()); };
+const daysBetween=(a,b)=>Math.round((b-a)/86400000);
+const plural=(n,w,p)=>n+" "+(n>1?(p||w+"s"):w);
+const MONTHS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+const fmtDay=d=>d.getDate()+" "+MONTHS[d.getMonth()]+(d.getFullYear()!==new Date().getFullYear()?" "+d.getFullYear():"");
+function ago(t){
+  const s=(Date.now()-t)/1000;
+  if(s<60) return "à l'instant";
+  if(s<3600) return "il y a "+Math.floor(s/60)+" min";
+  if(s<86400) return "il y a "+Math.floor(s/3600)+" h";
+  if(s<172800) return "hier";
+  const d=new Date(t); return "le "+d.getDate()+"/"+pad(d.getMonth()+1);
+}
+function toast(msg){
+  let t=$("#toast"); if(!t){ t=document.createElement("div"); t.id="toast"; t.className="toast"; document.body.appendChild(t); }
+  t.textContent=msg; t.classList.add("on"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),3000);
+}
+function hearts(n=8,x,y){
+  for(let i=0;i<n;i++) setTimeout(()=>{
+    const f=document.createElement("div"); f.className="floater"; f.textContent=["❤️","💕","💖","💗","🥰"][i%5];
+    f.style.left=((x!=null?x:window.innerWidth/2)+(Math.random()-.5)*160)+"px"; f.style.top=((y!=null?y:window.innerHeight*.6))+"px";
+    document.body.appendChild(f); setTimeout(()=>f.remove(),1900);
+  },i*90);
+}
+function sheet(html){
+  const m=document.createElement("div"); m.className="modal";
+  m.innerHTML=`<div class="card">${html}</div>`;
+  m.onclick=e=>{ if(e.target===m) m.remove(); };
+  document.body.appendChild(m); return m;
+}
+
+/* ================= État ================= */
+let CODE=LS.get("nd-code"), WHO=LS.get("nd-who"), D=null, PEOPLE={dali:"Dali",rahma:"Rahma"};
+let tab=LS.get("nd-tab")||"home", listTab=LS.get("nd-list")||"courses", pendingRender=false;
+const other=()=>WHO==="dali"?"rahma":"dali";
+const nm=p=>PEOPLE[p]||p;
+
+async function api(method, body){
+  const opts={method, headers:{"X-Code":CODE||""}, cache:"no-store"};
+  let url=API;
+  if(method==="GET") url+=`?who=${WHO||""}&day=${ymd(new Date())}`;
+  else{ opts.headers["Content-Type"]="application/json"; opts.body=JSON.stringify({who:WHO, day:ymd(new Date()), ...body}); }
+  const r=await fetch(url,opts);
+  let j=null; try{ j=await r.json(); }catch(e){}
+  if(!r.ok){ const err=new Error((j&&j.error)||("Erreur ("+r.status+")")); err.status=r.status; throw err; }
+  return j;
+}
+async function refresh(force){
+  if(!CODE || !WHO) return;
+  try{ D=await api("GET"); render(force); }
+  catch(e){ if(e.status===401){ logout("Code secret changé ou incorrect."); } }
+}
+async function act(action, data, btn){
+  if(btn) btn.disabled=true;
+  try{ D=await api("POST",{action,...data}); render(true); return true; }
+  catch(e){ toast(e.message); return false; }
+  finally{ if(btn && btn.isConnected) btn.disabled=false; }
+}
+setInterval(()=>{ if(!document.hidden && D) refresh(); }, 15000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && D) refresh(); });
+document.addEventListener("focusout",()=>setTimeout(()=>{ if(pendingRender && !typing()) render(true); },150));
+const typing=()=>{ const a=document.activeElement; return a && /INPUT|TEXTAREA/.test(a.tagName) && a.value; };
+
+function logout(msg){ CODE=null; D=null; LS.del("nd-code"); loginScreen(); if(msg) toast(msg); }
+
+/* ================= Première ouverture / connexion ================= */
+function setupScreen(){
+  app.innerHTML=`<div class="solo">
+    <div class="center"><div style="font-size:64px">💕</div>
+      <h1>${esc(PEOPLE.dali)} <span class="heart">&</span> ${esc(PEOPLE.rahma)}</h1>
+      <p class="hand" style="font-size:26px">Bienvenue dans votre petit coin à deux</p></div>
+    <div class="card stack">
+      <p style="margin:0">Choisissez votre <b>code secret</b> : c'est lui qui protège l'appli. Partagez-le uniquement entre vous deux.</p>
+      <input type="password" id="c1" placeholder="Code secret (4 caractères min.)" autocomplete="new-password">
+      <input type="password" id="c2" placeholder="Confirme le code" autocomplete="new-password">
+      <button class="btn" id="go">Créer notre espace 💕</button>
+    </div></div>`;
+  $("#go").onclick=async e=>{
+    const a=$("#c1").value.trim(), b=$("#c2").value.trim();
+    if(a.length<4) return toast("4 caractères minimum");
+    if(a!==b) return toast("Les deux codes ne sont pas pareils");
+    e.target.disabled=true;
+    try{
+      const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"setup",code:a})});
+      const j=await r.json(); if(!r.ok) throw new Error(j.error);
+      CODE=a; LS.set("nd-code",a); whoScreen();
+    }catch(err){ toast(err.message); e.target.disabled=false; }
+  };
+}
+function loginScreen(){
+  app.innerHTML=`<div class="solo">
+    <div class="center"><div style="font-size:64px">🔐</div>
+      <h1>Nous Deux</h1><p class="hand" style="font-size:26px">${esc(PEOPLE.dali)} & ${esc(PEOPLE.rahma)}</p></div>
+    <form class="card stack" id="f">
+      <input type="password" id="c" placeholder="Votre code secret" autocomplete="current-password">
+      <button class="btn">Entrer 💕</button>
+    </form></div>`;
+  $("#c").focus();
+  $("#f").onsubmit=async e=>{
+    e.preventDefault();
+    const btn=e.target.querySelector("button"); btn.disabled=true;
+    CODE=$("#c").value.trim();
+    try{
+      await api("GET"); LS.set("nd-code",CODE);
+      if(WHO && PEOPLE[WHO]) start(); else whoScreen();
+    }catch(err){ CODE=null; toast(err.message); $("#f").classList.add("shake"); setTimeout(()=>$("#f")&&$("#f").classList.remove("shake"),400); btn.disabled=false; }
+  };
+}
+function whoScreen(){
+  app.innerHTML=`<div class="solo center">
+    <div style="font-size:64px">🥰</div><h1>Qui es-tu ?</h1>
+    <p>Ce téléphone s'en souviendra.</p>
+    <div class="stack" style="margin-top:16px">
+      ${Object.entries(PEOPLE).map(([k,v])=>`<button class="btn ${k==="dali"?"plum":""}" data-w="${k}" style="font-size:22px;padding:18px">${esc(v)}</button>`).join("")}
+    </div></div>`;
+  $$("[data-w]").forEach(b=>b.onclick=()=>{ WHO=b.dataset.w; LS.set("nd-who",WHO); start(); });
+}
+async function start(){
+  app.innerHTML=`<p class="center" style="margin-top:42vh">💕</p>`;
+  try{ D=await api("GET"); }catch(e){ if(e.status===401) return logout(e.message); toast(e.message); return; }
+  shell(); render(true);
+}
+
+/* ================= Structure ================= */
+const TABS=[["home","🏠","Nous"],["notes","💌","Mots"],["lists","📝","Listes"],["money","💶","Comptes"],["question","❓","Question"]];
+function shell(){
+  app.innerHTML=`
+    <header class="top"><div class="logo">${esc(nm("dali"))} <span>❤</span> ${esc(nm("rahma"))}</div><button class="icon-btn" id="menu" aria-label="Réglages">⚙️</button></header>
+    <main class="page" id="page"></main>
+    <nav class="tabs"><div>${TABS.map(([k,i,l])=>`<button data-tab="${k}"><b>${i}</b>${l}</button>`).join("")}</div></nav>`;
+  $$("[data-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; LS.set("nd-tab",tab); render(true); window.scrollTo(0,0); });
+  $("#menu").onclick=settings;
+}
+const unread=()=>D.notes.filter(n=>n.from!==WHO && !n.read).length;
+function render(force){
+  if(!D || !$("#page")) return;
+  if(!force && typing()){ pendingRender=true; return; }
+  pendingRender=false;
+  const u=unread();
+  document.title=(u?`(${u}) `:"")+"Nous Deux";
+  $$("[data-tab]").forEach(b=>{
+    b.classList.toggle("on",b.dataset.tab===tab);
+    const old=b.querySelector(".badge"); if(old) old.remove();
+    if(b.dataset.tab==="notes" && u && tab!=="notes") b.insertAdjacentHTML("beforeend",`<span class="badge">${u}</span>`);
+  });
+  const y=window.scrollY;
+  ({home:homeTab,notes:notesTab,lists:listsTab,money:moneyTab,question:questionTab})[tab]();
+  if(!force) window.scrollTo(0,y);
+}
+
+/* ================= Accueil ================= */
+function together(){
+  const s=parseDay(D.start), t=todayDate();
+  let y=t.getFullYear()-s.getFullYear(), m=t.getMonth()-s.getMonth(), d=t.getDate()-s.getDate();
+  if(d<0){ m--; d+=new Date(t.getFullYear(),t.getMonth(),0).getDate(); }
+  if(m<0){ y--; m+=12; }
+  return {y,m,d,days:daysBetween(s,t)};
+}
+function nextOccurrence(dateStr, yearly){
+  const t=todayDate(), d=parseDay(dateStr);
+  if(!yearly) return d;
+  let n=new Date(t.getFullYear(),d.getMonth(),d.getDate());
+  if(n<t) n=new Date(t.getFullYear()+1,d.getMonth(),d.getDate());
+  return n;
+}
+function whenTxt(n){
+  const k=daysBetween(todayDate(),n);
+  if(k===0) return `<span class="today">Aujourd'hui 🎉</span>`;
+  if(k===1) return "Demain";
+  if(k>1) return "dans "+plural(k,"jour");
+  return "il y a "+plural(-k,"jour");
+}
+function homeTab(){
+  const T=together(), s=parseDay(D.start), t=todayDate();
+  const parts=[]; if(T.y) parts.push(plural(T.y,"an")); if(T.m) parts.push(T.m+" mois"); if(T.d||!parts.length) parts.push(plural(T.d,"jour"));
+  const ymdTxt=parts.length>1?parts.slice(0,-1).join(", ")+" et "+parts[parts.length-1]:parts[0];
+  // prochain « moisiversaire »
+  const totalM=T.y*12+T.m;
+  let nm1=new Date(s.getFullYear(),s.getMonth()+totalM+(T.d===0?0:1),s.getDate());
+  const nmCount=T.d===0?totalM:totalM+1;
+  const mLabel=nmCount%12===0?plural(nmCount/12,"an"):(nmCount>=12?plural(Math.floor(nmCount/12),"an")+" et "+(nmCount%12)+" mois":nmCount+" mois");
+  const nextHundred=Math.floor(T.days/100+1)*100, hDate=new Date(s.getTime()+nextHundred*86400000);
+  const isToday=T.d===0 && totalM>0;
+  const me=D.moods[WHO], them=D.moods[other()];
+  const lastIn=D.notes.find(n=>n.from!==WHO);
+  const dates=[{id:"_start",title:"Notre anniversaire 💕",date:D.start,yearly:true,fixed:true},...D.dates]
+    .map(x=>({...x,next:nextOccurrence(x.date,x.yearly)}))
+    .sort((a,b)=>(a.next<t)-(b.next<t) || (a.next<t ? b.next-a.next : a.next-b.next));
+  $("#page").innerHTML=`
+    <div class="card rose counter">
+      <div class="lbl" style="justify-content:center">Ensemble depuis le ${fmtDay(s)}</div>
+      <div class="big">${T.days} <span style="font-size:24px">jours</span></div>
+      <div class="ymd">${ymdTxt} ❤️</div>
+      ${isToday?`<div class="milestone"><b>🎉</b><div><b style="font-size:16px">Joyeux ${mLabel} !</b><br>Ça se fête aujourd'hui 🥂</div></div>`
+        :`<div class="milestone"><b>📅</b><div>${mLabel} ensemble le <b style="font-size:15px">${fmtDay(nm1)}</b> · ${whenTxt(nm1)}</div></div>`}
+      <div class="milestone"><b>💯</b><div>${nextHundred} jours le <b style="font-size:15px">${fmtDay(hDate)}</b> · ${whenTxt(hDate)}</div></div>
+    </div>
+
+    <div class="card">
+      <div class="lbl">Nos humeurs du jour</div>
+      <div class="moods">
+        ${[WHO,other()].map(p=>{ const m=D.moods[p]; return `<div class="mood ${p===WHO?"me":""}" ${p===WHO?'id="mymood"':""}>
+          <div class="n">${esc(nm(p))}</div><div class="e">${m?esc(m.emoji):"❔"}</div>
+          <div class="t">${m?(m.text?"« "+esc(m.text)+" » · ":"")+ago(m.t):(p===WHO?"Touche pour choisir":"Pas encore d'humeur")}</div></div>`; }).join("")}
       </div>
-    </a>
+      ${them && /🫂|🥺|😢|🤒/.test(them.emoji)?`<p class="center" style="margin-top:10px">${esc(nm(other()))} a peut-être besoin d'un câlin 🫂</p>`:""}
+    </div>
 
-    <a class="game" href="/karaoke/">
-      <div class="cover karaoke">🎤<small style="left:22px;top:18px">🎶</small><small style="right:24px;bottom:14px">⭐</small></div>
-      <div class="body">
-        <h2>Karaoké Battle</h2>
-        <p>Chacun son tour au micro avec des défis rigolos. Le public réagit en direct et note la performance. Qui sera la star de la soirée ?</p>
-        <div class="meta"><span class="pill">👥 2 à 12 joueurs</span><span class="pill">⏳ 15–40 min</span></div>
-        <span class="play karaoke">Jouer</span>
-      </div>
-    </a>
+    <div class="card peach">
+      <div class="lbl">Dernier mot de ${esc(nm(other()))} <button class="link" id="gonotes">Écrire →</button></div>
+      ${lastIn?`<div class="lastnote">${esc(lastIn.text)}</div><div class="hint">${ago(lastIn.t)}</div>`:`<p style="margin:0">Pas encore de petit mot… écris-lui le premier 💌</p>`}
+    </div>
 
-    <div class="game soon"><b>🧩</b>D'autres jeux arrivent bientôt…</div>
-  </div>
+    <button class="btn sun" id="tonight" style="margin:14px 0">🎲 On fait quoi ce soir ?</button>
 
-  <footer>Astuce : ajoute cette page à l'écran d'accueil de ton téléphone pour la retrouver facilement.</footer>
-</main>
+    <div class="card">
+      <div class="lbl">Nos dates importantes</div>
+      ${dates.map(x=>`<div class="date"><div class="d"><b>${esc(x.title)}</b><div class="hint">${fmtDay(parseDay(x.date))}${x.yearly?" · chaque année":""}</div></div>
+        <div class="when">${whenTxt(x.next)}</div>${x.fixed?"":`<button class="x" data-deldate="${x.id}" aria-label="Supprimer">×</button>`}</div>`).join("")}
+      <details id="adddate"><summary>+ Ajouter une date (anniversaire, rendez-vous…)</summary>
+        <form class="stack" id="df" style="margin-top:10px">
+          <input type="text" id="dt" placeholder="Ex : Anniversaire de Rahma 🎂" maxlength="60">
+          <input type="date" id="dd">
+          <label class="row hint"><input type="checkbox" id="dy" checked> Revient chaque année</label>
+          <button class="btn small">Ajouter</button>
+        </form></details>
+    </div>`;
+  $("#mymood").onclick=moodPicker;
+  $("#gonotes").onclick=()=>{ tab="notes"; LS.set("nd-tab",tab); render(true); };
+  $("#tonight").onclick=tonight;
+  $$("[data-deldate]").forEach(b=>b.onclick=()=>{ if(confirm("Supprimer cette date ?")) act("date.del",{id:b.dataset.deldate}); });
+  $("#df").onsubmit=e=>{ e.preventDefault(); act("date.add",{title:$("#dt").value,date:$("#dd").value,yearly:$("#dy").checked},e.target.querySelector("button")); };
+}
+
+const MOODS=["😍","🥰","😊","😌","🤩","😎","🙃","😴","🥱","🤒","😢","🥺","😤","😡","🤯","🫂","🤗","🥳","😋","🫶"];
+function moodPicker(){
+  const cur=D.moods[WHO]; let sel=cur?cur.emoji:"";
+  const m=sheet(`<h2>Comment tu te sens ?</h2>
+    <div class="emojis">${MOODS.map(e=>`<button data-e="${e}" class="${e===sel?"on":""}">${e}</button>`).join("")}</div>
+    <input type="text" id="mt" maxlength="80" placeholder="Un petit mot ? (optionnel)" value="${cur&&cur.text?esc(cur.text):""}">
+    <button class="btn" id="ms" style="margin-top:12px">Partager mon humeur</button>`);
+  m.querySelectorAll("[data-e]").forEach(b=>b.onclick=()=>{ sel=b.dataset.e; m.querySelectorAll("[data-e]").forEach(x=>x.classList.toggle("on",x===b)); });
+  m.querySelector("#ms").onclick=async e=>{ if(!sel) return toast("Choisis un emoji"); if(await act("mood.set",{emoji:sel,text:m.querySelector("#mt").value},e.target)){ m.remove(); hearts(5); } };
+}
+
+function tonight(){
+  const ICON={soirees:"💡 Sortie",films:"🎬 Film",restos:"🍽️ Resto"};
+  const pool=D.items.filter(i=>ICON[i.list] && !i.done);
+  const m=sheet(`<h2 class="center">🎲 Ce soir…</h2><div class="pick" id="pk"></div><div id="pl" class="center hint"></div>
+    <div class="row" style="margin-top:14px"><button class="btn light grow" id="again">Encore !</button><button class="btn grow" id="ok">Parfait 💕</button></div>`);
+  const draw=()=>{
+    if(!pool.length){ m.querySelector("#pk").textContent="Aucune idée pour l'instant"; m.querySelector("#pl").textContent="Ajoutez des idées dans Listes → Sorties, Films ou Restos 😉"; return; }
+    let n=0; const spin=setInterval(()=>{
+      const x=pool[Math.floor(Math.random()*pool.length)];
+      m.querySelector("#pk").textContent=x.text; m.querySelector("#pl").textContent=ICON[x.list];
+      if(++n>12){ clearInterval(spin); }
+    },70);
+  };
+  m.querySelector("#again").onclick=draw;
+  m.querySelector("#ok").onclick=()=>{ m.remove(); if(pool.length) hearts(); };
+  draw();
+}
+
+/* ================= Petits mots ================= */
+const QUICK=["Je pense à toi 💭","Tu me manques 🥺","Je t'aime ❤️","Bonne journée ☀️","Bonne nuit 🌙","Courage, tu vas gérer 💪","Hâte de te voir 🥰"];
+function notesTab(){
+  if(unread()) api("POST",{action:"note.read"}).then(j=>{ D=j; render(); }).catch(()=>{});
+  $("#page").innerHTML=`
+    <div class="card">
+      <div class="lbl">Un petit mot pour ${esc(nm(other()))}</div>
+      <textarea id="nt" maxlength="1000" placeholder="Écris-lui quelque chose de doux…"></textarea>
+      <div class="quick">${QUICK.map(q=>`<button class="chip" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
+      <button class="btn" id="send">Envoyer 💌</button>
+    </div>
+    ${D.notes.length?D.notes.map(n=>{
+      const mine=n.from===WHO;
+      return `<div class="bubble ${mine?"me":"them"}">
+        <div class="txt">${esc(n.text)}</div>
+        <div class="meta"><span>${mine?"Toi":esc(nm(n.from))} · ${ago(n.t)} ${!mine&&!n.read?'<span class="new">nouveau</span>':""}${mine?(n.read?" · vu ✓":" · envoyé"):""}</span>
+          ${mine?`<button class="x" data-delnote="${n.id}" aria-label="Supprimer">×</button>`:`<button class="hb ${n.heart?"on":""}" data-heart="${n.id}" aria-label="J'adore">❤️</button>`}</div>
+        ${mine&&n.heart?`<span class="hs">❤️</span>`:""}
+      </div>`; }).join(""):`<p class="center hand" style="font-size:24px;margin-top:30px">Votre boîte à mots doux est vide… pour l'instant 💌</p>`}`;
+  $$("[data-q]").forEach(b=>b.onclick=()=>{ $("#nt").value=b.dataset.q; $("#nt").focus(); });
+  $("#send").onclick=async e=>{ const t=$("#nt").value.trim(); if(!t) return toast("Écris un petit mot"); if(await act("note.add",{text:t},e.target)){ hearts(8); toast("Envoyé à "+nm(other())+" 💕"); } };
+  $$("[data-heart]").forEach(b=>b.onclick=e=>{ if(!b.classList.contains("on")) hearts(5,e.clientX,e.clientY); act("note.heart",{id:b.dataset.heart}); });
+  $$("[data-delnote]").forEach(b=>b.onclick=()=>{ if(confirm("Supprimer ce mot ?")) act("note.del",{id:b.dataset.delnote}); });
+}
+
+/* ================= Listes ================= */
+const LISTS={courses:["🛒","Courses","Lait, pain, chocolat…"],films:["🎬","Films & séries","Un film à voir ensemble…"],restos:["🍽️","Restos","Un resto à tester…"],
+  soirees:["💡","Sorties","Une idée de sortie ou de soirée…"],voyages:["✈️","Voyages","Une destination de rêve…"],cadeaux:["🎁","Idées cadeaux","Une idée de cadeau…"]};
+function listsTab(){
+  const items=D.items.filter(i=>i.list===listTab), done=items.filter(i=>i.done).length;
+  const [ic,title,ph]=LISTS[listTab];
+  $("#page").innerHTML=`
+    <div class="chips">${Object.entries(LISTS).map(([k,[i,l]])=>`<button class="chip ${k===listTab?"on":""}" data-list="${k}">${i} ${l} <span class="hint" style="color:inherit;opacity:.7">${D.items.filter(x=>x.list===k&&!x.done).length||""}</span></button>`).join("")}</div>
+    <div class="card">
+      <div class="lbl">${ic} ${title}</div>
+      ${listTab==="cadeaux"?`<p style="margin:0 0 10px">🤫 Tes idées cadeaux pour ${esc(nm(other()))} : <b>elle/il ne les voit pas</b>.</p>`:""}
+      <form class="row" id="af"><input type="text" id="it" class="grow" maxlength="120" placeholder="${esc(ph)}" autocomplete="off"><button class="btn small" style="padding:11px 14px">Ajouter</button></form>
+      <div style="margin-top:8px">${items.length?items.map(i=>`<div class="item ${i.done?"done":""}">
+          <button class="ck" data-tog="${i.id}" aria-label="Cocher">${i.done?"✓":""}</button>
+          <span class="tx">${esc(i.text)}</span><span class="who ${i.by}">${esc(nm(i.by).slice(0,1))}</span>
+          <button class="x" data-delitem="${i.id}" aria-label="Supprimer">×</button></div>`).join("")
+        :`<p class="center hint" style="margin:14px 0 4px">Liste vide pour l'instant</p>`}</div>
+      ${done?`<button class="link" id="clear" style="margin-top:10px">Retirer les éléments cochés (${done})</button>`:""}
+    </div>
+    ${["films","restos","soirees"].includes(listTab)?`<button class="btn sun" id="tonight">🎲 On fait quoi ce soir ?</button>`:""}`;
+  $$("[data-list]").forEach(b=>b.onclick=()=>{ listTab=b.dataset.list; LS.set("nd-list",listTab); render(true); });
+  $("#af").onsubmit=async e=>{ e.preventDefault(); const t=$("#it").value.trim(); if(!t) return; if(await act("item.add",{list:listTab,text:t},e.target.querySelector("button"))) $("#it").focus(); };
+  $$("[data-tog]").forEach(b=>b.onclick=()=>act("item.toggle",{id:b.dataset.tog}));
+  $$("[data-delitem]").forEach(b=>b.onclick=()=>act("item.del",{id:b.dataset.delitem}));
+  if($("#clear")) $("#clear").onclick=()=>act("item.clear",{list:listTab});
+  if($("#tonight")) $("#tonight").onclick=tonight;
+}
+
+/* ================= Comptes ================= */
+const money=n=>(Math.round(n*100)/100).toLocaleString("fr-FR",{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2})+" "+D.currency;
+function balance(){ // > 0 : Rahma doit à Dali
+  let b=0;
+  for(const x of D.exps){ const share=x.split==="half"?x.amount/2:x.amount; b+= x.payer==="dali"?share:-share; }
+  return Math.round(b*100)/100;
+}
+let payer=null, split="half";
+function moneyTab(){
+  payer=payer||WHO;
+  const b=balance(), debtor=b>0?"rahma":"dali", creditor=b>0?"dali":"rahma";
+  const now=new Date(), month=D.exps.filter(x=>!x.settle && new Date(x.t).getMonth()===now.getMonth() && new Date(x.t).getFullYear()===now.getFullYear()).reduce((a,x)=>a+x.amount,0);
+  $("#page").innerHTML=`
+    <div class="card rose balance">
+      ${Math.abs(b)<0.01?`<div style="font-size:44px">✨</div><h2>Vous êtes quittes !</h2>`
+        :`<p style="margin:0">${esc(nm(debtor))} doit</p><div class="amt">${money(Math.abs(b))}</div><p style="margin:0">à ${esc(nm(creditor))}</p>
+          <button class="btn small light" id="settle" style="margin-top:10px">C'est remboursé ✓</button>`}
+      <p class="hint" style="margin-top:10px">Dépensé ce mois-ci : <b>${money(month)}</b></p>
+    </div>
+    <div class="card stack">
+      <div class="lbl" style="margin:0">Nouvelle dépense</div>
+      <input type="text" id="et" maxlength="60" placeholder="Ex : Courses, resto, cinéma…">
+      <input type="number" id="ea" inputmode="decimal" step="0.01" min="0" placeholder="Montant (${esc(D.currency)})">
+      <div><div class="hint" style="margin-bottom:4px">Qui a payé ?</div>
+        <div class="seg" id="payer">${Object.keys(PEOPLE).map(p=>`<button data-v="${p}" class="${p===payer?"on":""}">${esc(nm(p))}</button>`).join("")}</div></div>
+      <div><div class="hint" style="margin-bottom:4px">Pour qui ?</div>
+        <div class="seg" id="split"><button data-v="half" class="${split==="half"?"on":""}">Nous deux (50/50)</button><button data-v="full" class="${split==="full"?"on":""}">Pour l'autre</button></div></div>
+      <button class="btn mint" id="add">Ajouter la dépense</button>
+    </div>
+    <div class="card">
+      <div class="lbl">Historique</div>
+      ${D.exps.length?D.exps.slice(0,100).map(x=>`<div class="exp">
+          <span style="font-size:22px">${x.settle?"💸":"🧾"}</span>
+          <div class="d"><b>${esc(x.title)}</b><span class="hint">${esc(nm(x.payer))} a payé${x.settle?"":x.split==="half"?" · 50/50":" · pour "+esc(nm(x.payer==="dali"?"rahma":"dali"))} · ${ago(x.t)}</span></div>
+          <span class="a">${money(x.amount)}</span><button class="x" data-delexp="${x.id}" aria-label="Supprimer">×</button></div>`).join("")
+        :`<p class="center hint" style="margin:6px 0">Aucune dépense pour l'instant</p>`}
+    </div>`;
+  $$("#payer button").forEach(b=>b.onclick=()=>{ payer=b.dataset.v; $$("#payer button").forEach(x=>x.classList.toggle("on",x===b)); });
+  $$("#split button").forEach(b=>b.onclick=()=>{ split=b.dataset.v; $$("#split button").forEach(x=>x.classList.toggle("on",x===b)); });
+  $("#add").onclick=e=>act("exp.add",{title:$("#et").value,amount:$("#ea").value,payer,split},e.target);
+  if($("#settle")) $("#settle").onclick=()=>{ if(confirm(`${nm(debtor)} a remboursé ${money(Math.abs(b))} à ${nm(creditor)} ?`)) act("exp.add",{title:"Remboursement",amount:Math.abs(b),payer:debtor,split:"full",settle:true}).then(ok=>ok&&hearts(4)); };
+  $$("[data-delexp]").forEach(b=>b.onclick=()=>{ if(confirm("Supprimer cette dépense ?")) act("exp.del",{id:b.dataset.delexp}); });
+}
+
+/* ================= Question du jour ================= */
+function questionTab(){
+  const q=D.qa, o=nm(other());
+  $("#page").innerHTML=`
+    <div class="card rose">
+      <div class="lbl" style="justify-content:center">Question du jour</div>
+      <div class="question">${esc(q.question)}</div>
+    </div>
+    ${q.mine?`
+      <div class="answer"><div class="n">Toi</div><div class="a">${esc(q.mine)}</div></div>
+      ${q.theirs?`<div class="answer" style="background:var(--blush)"><div class="n">${esc(o)}</div><div class="a">${esc(q.theirs)}</div></div>`
+        :`<p class="center">${esc(o)} n'a pas encore répondu… ⏳</p>`}
+      <details><summary>Modifier ma réponse</summary>
+        <textarea id="qa" maxlength="600" style="margin-top:8px">${esc(q.mine)}</textarea><button class="btn small" id="qs" style="margin-top:8px">Enregistrer</button></details>
+    `:`
+      ${q.theirAnswered?`<div class="answer"><div class="n">${esc(o)} a déjà répondu 👀</div><div class="a locked">Réponds d'abord pour voir sa réponse</div></div>`:""}
+      <textarea id="qa" maxlength="600" placeholder="Ta réponse…"></textarea>
+      <button class="btn" id="qs" style="margin-top:10px">Envoyer ma réponse</button>
+      <p class="hint center">Vous voyez la réponse de l'autre seulement après avoir répondu.</p>`}
+    ${q.history.length?`<div class="card"><div class="lbl">Vos réponses précédentes</div>
+      ${q.history.map(h=>`<details style="border-bottom:2px dashed var(--line);padding:6px 0"><summary style="color:var(--ink)">${fmtDay(parseDay(h.day))} · <span style="font-weight:600">${esc(h.q)}</span></summary>
+        <div class="answer"><div class="n">${esc(nm("dali"))}</div><div class="a">${esc(h.dali)}</div></div>
+        <div class="answer"><div class="n">${esc(nm("rahma"))}</div><div class="a">${esc(h.rahma)}</div></div></details>`).join("")}</div>`:""}`;
+  $("#qs").onclick=async e=>{ const t=$("#qa").value.trim(); if(!t) return toast("Écris ta réponse"); if(await act("qa.answer",{day:q.day,text:t},e.target)) hearts(5); };
+}
+
+/* ================= Réglages ================= */
+function settings(){
+  const m=sheet(`<h2>Réglages</h2>
+    <div class="stack">
+      <div><div class="hint" style="margin-bottom:4px">Sur ce téléphone, je suis</div>
+        <div class="seg" id="sw">${Object.entries(PEOPLE).map(([k,v])=>`<button data-v="${k}" class="${k===WHO?"on":""}">${esc(v)}</button>`).join("")}</div></div>
+      <div><div class="hint" style="margin-bottom:4px">Devise</div>
+        <div class="seg" id="cur">${["€","DT","$","£","CHF","MAD"].map(c=>`<button data-v="${c}" class="${c===D.currency?"on":""}">${c}</button>`).join("")}</div></div>
+      <div class="card" style="margin:4px 0;box-shadow:none"><b>📲 Installer l'appli</b>
+        <p style="margin:4px 0 0">iPhone : bouton Partager → « Sur l'écran d'accueil ».<br>Android : menu ⋮ → « Ajouter à l'écran d'accueil ».</p></div>
+      <button class="btn light" id="out">Se déconnecter</button>
+    </div>`);
+  m.querySelectorAll("#sw button").forEach(b=>b.onclick=()=>{ WHO=b.dataset.v; LS.set("nd-who",WHO); payer=null; m.remove(); refresh(true); });
+  m.querySelectorAll("#cur button").forEach(b=>b.onclick=async()=>{ if(await act("cfg.currency",{currency:b.dataset.v})) m.remove(); });
+  m.querySelector("#out").onclick=()=>{ m.remove(); logout(); };
+}
+
+/* ================= Démarrage ================= */
+(async function boot(){
+  try{
+    const r=await fetch(API+"?status=1",{cache:"no-store"}); const j=await r.json();
+    if(!r.ok) throw new Error(j.error||"Serveur indisponible");
+    PEOPLE=j.people||PEOPLE;
+    if(!j.configured) return setupScreen();
+    if(!CODE) return loginScreen();
+    if(!WHO || !PEOPLE[WHO]){
+      try{ await api("GET"); whoScreen(); }catch(e){ if(e.status===401) logout(); else toast(e.message); }
+      return;
+    }
+    start();
+  }catch(e){
+    app.innerHTML=`<div class="solo center"><div style="font-size:56px">😕</div><h2>Oups</h2><p>${esc(e.message)}</p><button class="btn" onclick="location.reload()">Réessayer</button></div>`;
+  }
+})();
+</script>
 </body>
 </html>
