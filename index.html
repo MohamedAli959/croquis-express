@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#fff8ec">
 <title>Croquis Express</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Patrick+Hand&display=swap" rel="stylesheet">
@@ -24,6 +25,7 @@
   .btn{appearance:none;border:2px solid var(--ink);background:var(--sun);color:var(--ink);font:600 18px 'Fredoka',sans-serif;
        padding:14px 18px;border-radius:14px;box-shadow:3px 3px 0 var(--ink);cursor:pointer;width:100%;transition:transform .05s}
   .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .btn:disabled{opacity:.45;cursor:default;transform:none}
   .btn.pop{background:var(--pop);color:#fff}
   .btn.mint{background:var(--mint);color:#fff}
   .btn.sky{background:var(--sky);color:#fff}
@@ -34,32 +36,39 @@
   .stack{display:flex;flex-direction:column;gap:10px}
   .spacer{flex:1}
   label.lbl{font-weight:600;font-size:15px;display:block;margin:6px 0 6px}
-  input[type=text]{width:100%;font:500 18px 'Fredoka',sans-serif;padding:11px 12px;border:2px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink)}
+  input[type=text]{width:100%;min-width:0;font:500 18px 'Fredoka',sans-serif;padding:11px 12px;border:2px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink)}
   input[type=text]:focus{outline:3px solid var(--sun)}
   .seg{display:flex;border:2px solid var(--ink);border-radius:12px;overflow:hidden}
   .seg button{flex:1;border:0;background:#fff;font:600 15px 'Fredoka';padding:10px 4px;color:var(--ink);cursor:pointer}
   .seg button+button{border-left:2px solid var(--ink)}
   .seg button.on{background:var(--ink);color:#fff}
-  .pl{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .pl{display:flex;gap:8px;align-items:center;min-height:34px;margin-bottom:6px}
+  .pl .pname{flex:1;font-weight:500;font-size:18px}
   .dot{width:14px;height:14px;border-radius:50%;flex:none;border:2px solid var(--ink)}
-  .x{border:2px solid var(--ink);background:#fff;border-radius:10px;width:42px;height:46px;font-size:20px;cursor:pointer;flex:none}
+  .x{border:2px solid var(--ink);background:#fff;border-radius:10px;width:36px;height:34px;font-size:18px;cursor:pointer;flex:none;color:var(--ink)}
   .center{text-align:center}
   .big-emoji{font-size:64px;line-height:1;margin:10px 0}
   .word{font-size:40px;font-weight:700;color:var(--pop);margin:4px 0;line-height:1.05}
+  .code{font-size:52px;font-weight:700;letter-spacing:10px;color:var(--sky);line-height:1.1;margin:4px 0}
+  .qr img{width:150px;height:150px;image-rendering:pixelated;margin:6px auto 0;display:block}
+  .or{text-align:center;color:var(--soft);font-weight:600;margin:12px 0 2px}
   .pill{display:inline-block;border:2px solid var(--ink);border-radius:999px;padding:3px 10px;font-weight:600;font-size:14px;background:#fff}
-  .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
   .timer{font-weight:700;font-size:22px;min-width:64px;text-align:right}
   .timer.warn{color:var(--pop)}
   .bar{height:8px;border:2px solid var(--ink);border-radius:999px;overflow:hidden;background:#fff;margin-bottom:8px}
   .bar > div{height:100%;background:var(--mint);transition:width .25s linear}
   .canvas-wrap{position:relative;flex:1;min-height:260px;background:#fff;border:2px solid var(--ink);border-radius:16px;overflow:hidden;box-shadow:4px 4px 0 var(--ink)}
   canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+  .overlay{position:absolute;inset:0;background:rgba(255,248,236,.96);display:flex;align-items:center;justify-content:center;text-align:center;z-index:2}
+  .count{font-size:96px;font-weight:700;color:var(--pop);line-height:1}
   .tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0}
   .sw{width:34px;height:34px;border-radius:50%;border:2px solid var(--ink);cursor:pointer;flex:none}
   .sw.on{outline:3px solid var(--sun);outline-offset:2px}
   .tool{border:2px solid var(--ink);background:#fff;border-radius:10px;height:36px;min-width:38px;padding:0 8px;font:600 15px 'Fredoka';cursor:pointer;color:var(--ink)}
   .tool.on{background:var(--ink);color:#fff}
   .drawing{width:100%;aspect-ratio:3/4;object-fit:contain;background:#fff;border:2px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);display:block}
+  .drawing.small{max-height:52vh}
   .gallery{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .gallery figure{margin:0}
   .gallery img{width:100%;aspect-ratio:3/4;object-fit:contain;background:#fff;border:2px solid var(--ink);border-radius:12px}
@@ -70,6 +79,7 @@
   .score b{font-size:22px}
   .feedback{font-weight:700;font-size:20px;min-height:28px;text-align:center}
   .feedback.ok{color:var(--mint)} .feedback.ko{color:var(--pop)}
+  .guesses{display:flex;flex-direction:column;gap:4px;font-size:18px}
   .shake{animation:shake .35s}
   @keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
   .pop-in{animation:popin .35s ease-out}
@@ -77,224 +87,419 @@
   .hint{font-size:14px;color:var(--soft)}
   .steps{padding-left:20px;margin:6px 0;color:var(--soft);line-height:1.5}
   .modal{position:fixed;inset:0;background:rgba(43,35,64,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:20}
-  .modal .card{max-width:420px;width:100%}
+  .modal .card{max-width:420px;width:100%;max-height:90dvh;overflow:auto}
+  .toast{position:fixed;left:50%;bottom:20px;transform:translate(-50%,40px);opacity:0;background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;
+         font-weight:500;max-width:calc(100% - 32px);text-align:center;transition:all .25s;z-index:30;pointer-events:none}
+  .toast.on{opacity:1;transform:translate(-50%,0)}
 </style>
 </head>
 <body>
-<div id="app"></div>
+<div id="app"><p class="center" style="margin-top:40vh">Chargement…</p></div>
 
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script>
-/* ============ Mots ============ */
-const WORDS = {
-  facile: ["chat","chien","maison","soleil","voiture","arbre","pomme","banane","poisson","fleur","lune","étoile","bateau","avion","vélo","chapeau","lunettes","parapluie","clé","téléphone","pizza","glace","gâteau","oiseau","serpent","escargot","papillon","araignée","cœur","nuage","pluie","montagne","plage","château","fusée","robot","fantôme","citrouille","bougie","horloge","livre","crayon","ciseaux","chaussure","chaussette","t-shirt","pantalon","couronne","épée","guitare","piano","tambour","ballon","football","tennis","lit","chaise","table","lampe","télévision","ordinateur","appareil photo","cadeau","sapin de Noël","bonhomme de neige","œuf","poule","vache","cochon","mouton","cheval","lapin","souris","girafe","éléphant","lion","tigre","singe","pingouin","tortue","grenouille","requin","baleine","pieuvre","crabe","abeille","dragon","sirène","licorne","pirate","sorcière","roi","clown","bébé","dent","œil","main","pied","nez","oreille","feu","arc-en-ciel","volcan","île","pont","tente","train","bus","camion","hélicoptère","sous-marin","tracteur","carotte","tomate","fraise","cerise","ananas","champignon","hamburger","frites","hot-dog","croissant","baguette","fromage","café","bouteille","verre","fourchette","cuillère","casserole","marteau","échelle","boussole","ancre","drapeau","trophée","médaille","boîte aux lettres","enveloppe","ampoule","aimant","loupe","balai","brosse à dents","savon","miroir","baignoire","toilettes","porte","fenêtre","escalier"],
-  difficile: ["tour Eiffel","embouteillage","pique-nique","feu d'artifice","montagnes russes","plongée sous-marine","cascade","tempête","tremblement de terre","éclipse","astronaute","chevalier","momie","vampire","zombie","extraterrestre","cowboy","pompier","policier","chirurgien","dentiste","magicien","jongleur","funambule","marionnette","toboggan","balançoire","manège","grande roue","patinoire","ski","surf","parachute","montgolfière","phare","moulin à vent","igloo","pyramide","cactus","palmier","désert","jungle","marais","grotte","barrage","autoroute","rond-point","feu rouge","parking","ascenseur","escalator","distributeur","caddie","caisse enregistreuse","codebarre","réveil","somnambule","cauchemar","ronfler","éternuer","bâiller","pleurer","rire","danser","nager","courir","sauter","grimper","pêcher","cuisiner","bricoler","jardiner","tricoter","peindre","photographier","selfie","wifi","batterie vide","mot de passe","embrasser","mariage","anniversaire","enterrement de vie de garçon","déménagement","vacances","rentrée scolaire","examen","prison","tribunal","hôpital","pharmacie","boulangerie","bibliothèque","musée","cinéma","théâtre","cirque","zoo","aquarium","ferme","usine","chantier","cimetière","station-service","aéroport","gare","port","fête foraine","karaoké","bowling","flipper","jeu vidéo","manette","casque audio","micro","haut-parleur","podcast","streaming","télécommande","coup de soleil","boule de neige","bonhomme de pain d'épices","raclette","fondue","crêpe","sushi","kebab","barbe à papa","pop-corn","chewing-gum","sucette","marmite","chaudron","balance","sablier","boule de cristal","trésor","carte au trésor","labyrinthe","puzzle","domino","dé","échecs","cartes à jouer","loto","tirelire","impôts","facture","lune de miel","jumeaux","fantôme de l'opéra","super-héros","dinosaure","mammouth","yéti","loup-garou","Père Noël","lapin de Pâques","fée","génie de la lampe"]
-};
-
-/* ============ État ============ */
+/* ================= Utilitaires ================= */
 const COLORS = ["#ff5d73","#4f7cff","#2ec4b6","#ffc145","#a259ff","#ff8c42","#3bb273","#e84a9b"];
-const S = {
-  players: ["","","",""],
-  turns: 1,       // nombre de fois où chacun devine
-  drawTime: 60,
-  level: "facile",
-  // partie
-  scores: [], round: 0, totalRounds: 0, guesser: 0,
-  word: "", used: new Set(),
-  queue: [], drawIdx: 0, drawings: [], revealIdx: 0, foundAt: -1, history: []
-};
-try{ const saved = JSON.parse(localStorage.getItem("croquis-setup")||"null");
-  if(saved){ Object.assign(S, {players:saved.players||S.players, turns:saved.turns||1, drawTime:saved.drawTime||60, level:saved.level||"facile"}); } }catch(e){}
-
 const app = document.getElementById("app");
 const esc = s => String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const name = i => S.players[i] || ("Joueur " + (i+1));
-const color = i => COLORS[i % COLORS.length];
+const $ = sel => app.querySelector(sel);
 function view(html){ app.innerHTML = html; window.scrollTo(0,0); }
-function $(sel){ return app.querySelector(sel); }
-let timerId = null;
-function stopTimer(){ if(timerId){ clearInterval(timerId); timerId=null; } }
+const LS = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+function toast(msg){
+  let t=document.getElementById("toast");
+  if(!t){ t=document.createElement("div"); t.id="toast"; t.className="toast"; document.body.appendChild(t); }
+  t.textContent=msg; t.classList.add("on"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),3500);
+}
+function modal(inner){
+  const m=document.createElement("div"); m.className="modal";
+  m.innerHTML=`<div class="card pop-in">${inner}</div>`;
+  m.onclick=e=>{ if(e.target===m) m.remove(); };
+  document.body.appendChild(m); return m;
+}
+function confirmBox(title, text, yes, onYes){
+  const m=modal(`<div class="center"><h2>${title}</h2><p>${text}</p>
+    <div class="row" style="margin-top:12px"><button class="btn ghost" data-no>Non</button><button class="btn pop" data-yes>${yes}</button></div></div>`);
+  m.querySelector("[data-no]").onclick=()=>m.remove();
+  m.querySelector("[data-yes]").onclick=()=>{ m.remove(); onYes(); };
+}
 
-/* ============ Accueil ============ */
+/* ================= Identité & connexion ================= */
+function newId(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,"0")).join("");
+}
+let myId = LS.get("cx-id");
+if(!myId || !/^[A-Za-z0-9-]{8,64}$/.test(myId)){ myId=newId(); LS.set("cx-id",myId); }
+let myName = LS.get("cx-name") || "";
+
+let code=null;        // code de la partie en cours
+let R=null;           // dernière réponse du serveur {state, players, done, now}
+let offset=0;         // décalage horloge serveur - horloge locale
+let screenKey="", onUpdate=null, cleanup=[];
+let pollT=null, pollGen=0, busy=false;
+let sentFor=null, upload=null;   // envoi du dessin de la manche en cours
+
+const sNow = () => Date.now()+offset;
+const roundTag = () => R.state.game+"-"+R.state.round;
+const drawersOf = s => s.order.filter(id=>id!==s.guesser);
+const nameOf = id => { const p=R && R.players.find(p=>p.id===id); return p ? p.name : "Joueur parti"; };
+function colorOf(id){
+  const s=R.state;
+  let i = s.phase!=="lobby" && s.order ? s.order.indexOf(id) : -1;
+  if(i<0) i=R.players.findIndex(p=>p.id===id);
+  return COLORS[Math.max(0,i)%COLORS.length];
+}
+const who = id => `<b style="color:${colorOf(id)}">${esc(nameOf(id))}</b>`;
+const imgUrl = (p, s=R.state) => `/api/room?img=1&code=${s.code}&g=${s.game}&r=${s.round}&p=${encodeURIComponent(p)}&v=${s.created}`;
+
+async function call(action, data={}){
+  const r = await fetch("/api/room",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action, code, id:myId, name:myName, ...data})});
+  let j=null; try{ j=await r.json(); }catch(e){}
+  if(!r.ok) throw new Error((j && j.error) || ("Erreur serveur ("+r.status+")"));
+  return j;
+}
+function apply(j){
+  if(!j || !j.state || !code || j.state.code!==code) return;
+  if(R && R.state.code===j.state.code && j.state.v < R.state.v) return; // réponse plus ancienne : ignorée
+  R=j; offset=j.now-Date.now(); render();
+}
+async function act(action, data, btn){
+  if(busy) return null;
+  busy=true; if(btn) btn.disabled=true;
+  try{ const j=await call(action,data); apply(j); return j; }
+  catch(e){ toast(e.message); return null; }
+  finally{ busy=false; if(btn && btn.isConnected) btn.disabled=false; }
+}
+
+function startPolling(){ pollGen++; clearTimeout(pollT); pollLoop(pollGen); }
+async function pollLoop(g){
+  if(g!==pollGen || !code) return;
+  const c=code;
+  try{
+    const r=await fetch(`/api/room?code=${c}&id=${encodeURIComponent(myId)}`,{cache:"no-store"});
+    if(g!==pollGen || c!==code) return;
+    if(r.status===404){ leaveLocal("Cette partie n'existe plus."); return; }
+    const j=await r.json();
+    if(r.ok) apply(j); else if(j && j.error) toast(j.error);
+  }catch(e){}
+  if(g===pollGen && code) pollT=setTimeout(()=>pollLoop(g), document.hidden?5000:1200);
+}
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && code){ startPolling(); keepAwake(); } });
+
+// Empêche l'écran de se mettre en veille pendant la partie (si le navigateur le permet)
+let wakeLock=null;
+async function keepAwake(){
+  try{ if(code && "wakeLock" in navigator && !wakeLock){ wakeLock=await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release",()=>wakeLock=null); } }catch(e){}
+}
+
+function enterRoom(j){
+  code=j.state.code; LS.set("cx-room",code);
+  history.replaceState(null,"","?r="+code);
+  R=null; screenKey=""; apply(j); startPolling(); keepAwake();
+}
+function leaveLocal(msg){
+  code=null; R=null; screenKey=""; pollGen++; clearTimeout(pollT); runCleanup();
+  LS.del("cx-room"); history.replaceState(null,"",location.pathname);
+  if(wakeLock){ wakeLock.release().catch(()=>{}); wakeLock=null; }
+  home(); if(msg) toast(msg);
+}
+function quitGame(){
+  confirmBox("Quitter la partie ?", R && R.state.phase!=="lobby" ? "Les autres continueront sans toi." : "Tu pourras revenir avec le code.", "Oui", ()=>{
+    call("leave").catch(()=>{}); leaveLocal();
+  });
+}
+
+/* ================= Routage des écrans ================= */
+function runCleanup(){ cleanup.forEach(f=>{ try{ f(); }catch(e){} }); cleanup=[]; onUpdate=null; }
+function every(ms,f){ const h=setInterval(f,ms); cleanup.push(()=>clearInterval(h)); f(); }
+
+function render(){
+  if(!code || !R) return;
+  const s=R.state;
+  if(!R.players.some(p=>p.id===myId)){ leaveLocal("Tu ne fais plus partie de cette partie."); return; }
+  let key, fn;
+  if(s.phase==="lobby"){ key="lobby:"+JSON.stringify([s.game,R.players,s.settings,s.host]); fn=lobbyScreen; }
+  else if(s.phase==="draw"){
+    const g = s.guesser===myId;
+    const sent = !g && (R.done[myId]!=null || sentFor===roundTag());
+    key=`draw:${roundTag()}:${g?"g":sent?"w":"d"}`;
+    fn = g ? drawGuesserScreen : sent ? drawWaitScreen : drawScreen;
+  }
+  else if(s.phase==="guess"){
+    const g = s.guesser===myId;
+    key=`guess:${roundTag()}:${s.revealIdx}:${g?"g":s.guesses.length}`;
+    fn = g ? guessScreen : watchScreen;
+  }
+  else if(s.phase==="result"){ key=`result:${roundTag()}`; fn=resultScreen; }
+  else { key=`final:${s.game}`; fn=finalScreen; }
+  if(key!==screenKey){ screenKey=key; runCleanup(); fn(); }
+  if(onUpdate) onUpdate();
+}
+
+/* ================= Accueil ================= */
 function home(){
-  stopTimer();
-  const pl = S.players.map((p,i)=>`
-    <div class="pl">
-      <span class="dot" style="background:${color(i)}"></span>
-      <input type="text" data-i="${i}" placeholder="Joueur ${i+1}" value="${esc(p)}" maxlength="16">
-      ${S.players.length>3?`<button class="x" data-rm="${i}" aria-label="Retirer">×</button>`:""}
-    </div>`).join("");
+  runCleanup(); screenKey="";
+  const inv=(new URLSearchParams(location.search).get("r")||"").toUpperCase().replace(/[^A-Z]/g,"").slice(0,4);
   view(`
     <h1>Croquis <span>Express</span></h1>
-    <p class="hand" style="font-size:20px">Tout le monde dessine, un seul devine… et les plus rapides passent en premier !</p>
-
+    <p class="hand" style="font-size:20px">Chacun sur son téléphone : tout le monde dessine, un seul devine… et les plus rapides passent en premier !</p>
     <div class="card">
-      <label class="lbl">Joueurs (3 à 8)</label>
-      <div id="pls">${pl}</div>
-      ${S.players.length<8?`<button class="btn ghost small" id="add">+ Ajouter un joueur</button>`:""}
+      <label class="lbl" for="nm">Ton prénom</label>
+      <input type="text" id="nm" maxlength="16" placeholder="Ex : Léa" value="${esc(myName)}" autocomplete="nickname">
     </div>
-
-    <div class="card stack">
-      <div><label class="lbl">Temps pour dessiner</label>
-        <div class="seg" id="time">${[30,45,60,90].map(t=>`<button data-v="${t}" class="${S.drawTime==t?"on":""}">${t}s</button>`).join("")}</div></div>
-      <div><label class="lbl">Chacun devine…</label>
-        <div class="seg" id="turns">${[1,2,3].map(t=>`<button data-v="${t}" class="${S.turns==t?"on":""}">${t} fois</button>`).join("")}</div></div>
-      <div><label class="lbl">Mots</label>
-        <div class="seg" id="level"><button data-v="facile" class="${S.level=="facile"?"on":""}">Faciles</button><button data-v="difficile" class="${S.level=="difficile"?"on":""}">Difficiles</button><button data-v="mix" class="${S.level=="mix"?"on":""}">Mélange</button></div></div>
-    </div>
-
-    <button class="btn pop" id="go" style="margin-top:6px">C'est parti !</button>
+    ${inv ? `
+      <div class="card stack center">
+        <p style="margin:0">On t'invite dans la partie</p>
+        <div class="code">${inv}</div>
+        <button class="btn pop" id="join">Rejoindre la partie</button>
+      </div>
+      <button class="btn ghost" id="other">Créer ma propre partie</button>
+    ` : `
+      <button class="btn pop" id="create" style="margin-top:6px">Créer une partie</button>
+      <div class="or">— ou —</div>
+      <div class="card">
+        <label class="lbl" for="cd">Rejoindre avec un code</label>
+        <form class="row" id="jf">
+          <input type="text" id="cd" maxlength="4" placeholder="ABCD" autocomplete="off" autocapitalize="characters" spellcheck="false"
+                 style="flex:2;text-transform:uppercase;letter-spacing:6px;font-weight:700;text-align:center">
+          <button class="btn mint" style="flex:1">Rejoindre</button>
+        </form>
+      </div>
+    `}
     <button class="btn ghost" id="rules" style="margin-top:10px">Comment on joue ?</button>
     <div style="height:20px"></div>
   `);
-  app.querySelectorAll("#pls input").forEach(inp=>inp.addEventListener("input",e=>{ S.players[+e.target.dataset.i]=e.target.value.trim(); }));
-  app.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ S.players.splice(+b.dataset.rm,1); home(); });
-  const add=$("#add"); if(add) add.onclick=()=>{ S.players.push(""); home(); setTimeout(()=>{const l=app.querySelectorAll("#pls input"); l[l.length-1].focus();},50); };
-  [["#time","drawTime",Number],["#turns","turns",Number],["#level","level",String]].forEach(([sel,key,cast])=>{
-    $(sel).querySelectorAll("button").forEach(b=>b.onclick=()=>{ S[key]=cast(b.dataset.v); $(sel).querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); });
-  });
+  const nm=$("#nm");
+  const readName=()=>{
+    myName=nm.value.trim().replace(/\s+/g," ").slice(0,16);
+    if(!myName){ nm.focus(); nm.classList.remove("shake"); void nm.offsetWidth; nm.classList.add("shake"); toast("Entre ton prénom d'abord"); return false; }
+    LS.set("cx-name",myName); return true;
+  };
+  const go=async(action,c,btn)=>{
+    if(!readName()) return;
+    if(action==="join" && !/^[A-Z]{4}$/.test(c)){ toast("Le code fait 4 lettres"); return; }
+    btn.disabled=true; code=c;
+    try{ const j=await call(action); enterRoom(j); }
+    catch(e){ code=null; toast(e.message); btn.disabled=false; }
+  };
+  if(inv){
+    $("#join").onclick=e=>go("join",inv,e.currentTarget);
+    $("#other").onclick=()=>{ history.replaceState(null,"",location.pathname); home(); };
+    if(!myName) nm.focus();
+  }else{
+    $("#create").onclick=e=>go("create",null,e.currentTarget);
+    $("#jf").onsubmit=e=>{ e.preventDefault(); go("join",$("#cd").value.toUpperCase().replace(/[^A-Z]/g,""),e.target.querySelector("button")); };
+  }
   $("#rules").onclick=rules;
-  $("#go").onclick=startGame;
 }
 
 function rules(){
-  const m=document.createElement("div"); m.className="modal";
-  m.innerHTML=`<div class="card pop-in">
+  const m=modal(`
     <h2>Comment on joue</h2>
     <ol class="steps">
-      <li>À chaque manche, <b>un joueur devine</b>. Il ne doit pas voir le mot.</li>
-      <li>Le téléphone passe de main en main : chaque autre joueur découvre le mot et le <b>dessine le plus vite possible</b>, puis appuie sur « J'ai fini ». Son temps est noté.</li>
-      <li>Le devineur reçoit le téléphone et voit les dessins <b>un par un, du plus rapide au plus lent</b>.</li>
-      <li>Il tape sa réponse. Raté ? On passe au dessin suivant.</li>
+      <li>Un joueur <b>crée la partie</b> et partage le code ou le QR code. Chacun rejoint <b>sur son propre téléphone</b>.</li>
+      <li>À chaque manche, <b>un joueur devine</b>. Tous les autres reçoivent le mot en même temps et le <b>dessinent le plus vite possible</b>, puis appuient sur « J'ai fini ».</li>
+      <li>Le devineur voit les dessins <b>un par un, du plus rapide au plus lent</b>, et tape sa réponse. Raté ? On passe au dessin suivant.</li>
     </ol>
     <p><b>Points :</b> plus le devineur trouve tôt, plus il gagne (dessin 1 = max). Le dessinateur du dessin deviné gagne <b>2 points</b>.</p>
     <p class="hint">Pas de lettres ni de chiffres dans les dessins, sinon c'est de la triche !</p>
-    <button class="btn" style="margin-top:10px">Compris</button></div>`;
-  m.querySelector("button").onclick=()=>m.remove(); m.onclick=e=>{ if(e.target===m) m.remove(); };
-  document.body.appendChild(m);
+    <button class="btn" style="margin-top:10px">Compris</button>`);
+  m.querySelector("button").onclick=()=>m.remove();
 }
 
-/* ============ Partie ============ */
-function startGame(){
-  S.players = S.players.map(p=>p.trim());
-  try{ localStorage.setItem("croquis-setup", JSON.stringify({players:S.players,turns:S.turns,drawTime:S.drawTime,level:S.level})); }catch(e){}
-  S.scores = S.players.map(()=>0);
-  S.round = 0; S.totalRounds = S.players.length * S.turns; S.history=[];
-  newRound();
-}
-
-function pickWord(){
-  const pool = S.level==="mix" ? WORDS.facile.concat(WORDS.difficile) : WORDS[S.level];
-  let left = pool.filter(w=>!S.used.has(w));
-  if(!left.length){ S.used.clear(); left = pool.slice(); }
-  const w = left[Math.floor(Math.random()*left.length)];
-  S.used.add(w); return w;
-}
-
-function newRound(){
-  stopTimer();
-  S.guesser = S.round % S.players.length;
-  S.word = pickWord();
-  S.queue = S.players.map((_,i)=>i).filter(i=>i!==S.guesser);
-  S.drawIdx = 0; S.drawings = []; S.revealIdx = 0; S.foundAt = -1;
+/* ================= Salon ================= */
+const LEVELS={facile:"faciles",difficile:"difficiles",mix:"mélangés"};
+function lobbyScreen(){
+  const s=R.state, set=s.settings, isHost=s.host===myId, n=R.players.length;
+  const link=location.origin+location.pathname+"?r="+s.code;
+  const seg=(id,opts,cur)=>`<div class="seg" id="${id}">${opts.map(([v,l])=>`<button data-v="${v}" class="${String(cur)===String(v)?"on":""}">${l}</button>`).join("")}</div>`;
+  const players=R.players.map((p,i)=>`
+    <div class="pl">
+      <span class="dot" style="background:${COLORS[i%COLORS.length]}"></span>
+      <span class="pname">${esc(p.name)}${p.id===myId?' <span class="hint">(toi)</span>':""}</span>
+      ${p.id===s.host?'<span title="Hôte">👑</span>':""}
+      ${isHost && p.id!==myId?`<button class="x" data-kick="${esc(p.id)}" aria-label="Retirer ${esc(p.name)}">×</button>`:""}
+    </div>`).join("");
   view(`
-    <div class="topbar"><span class="pill">Manche ${S.round+1} / ${S.totalRounds}</span><button class="btn ghost small" id="quit">Quitter</button></div>
-    <div class="spacer"></div>
-    <div class="center">
-      <div class="big-emoji">🙈</div>
-      <h2><span style="color:${color(S.guesser)}">${esc(name(S.guesser))}</span> va deviner !</h2>
-      <p>${esc(name(S.guesser))}, ne regarde pas l'écran pendant que les autres dessinent.</p>
-      <p>Les dessinateurs vont passer à tour de rôle : ${S.queue.map(i=>`<b style="color:${color(i)}">${esc(name(i))}</b>`).join(", ")}.</p>
+    <div class="topbar"><span class="pill">Salon</span><button class="btn ghost small" id="quit">Quitter</button></div>
+    <div class="card center">
+      <p style="margin:0">Code de la partie</p>
+      <div class="code">${s.code}</div>
+      <div class="qr" id="qr"></div>
+      <p class="hint">Scanne le QR code ou va sur<br><b style="word-break:break-all">${esc(location.host)}</b> et tape le code</p>
+      <button class="btn sky small" id="share">Envoyer le lien d'invitation</button>
     </div>
-    <div class="spacer"></div>
-    <button class="btn pop" id="next">On commence</button>
-  `);
-  $("#quit").onclick=confirmQuit;
-  $("#next").onclick=handoff;
-}
-
-function confirmQuit(){
-  const m=document.createElement("div"); m.className="modal";
-  m.innerHTML=`<div class="card pop-in center"><h2>Quitter la partie ?</h2><p>Les scores seront perdus.</p>
-    <div class="row" style="margin-top:12px"><button class="btn ghost" id="no">Non</button><button class="btn pop" id="yes">Oui</button></div></div>`;
-  m.querySelector("#no").onclick=()=>m.remove();
-  m.querySelector("#yes").onclick=()=>{ m.remove(); home(); };
-  document.body.appendChild(m);
-}
-
-/* ---- Passage du téléphone à un dessinateur ---- */
-function handoff(){
-  stopTimer();
-  const p = S.queue[S.drawIdx];
-  view(`
-    <div class="topbar"><span class="pill">Dessinateur ${S.drawIdx+1} / ${S.queue.length}</span><span class="pill">${esc(name(S.guesser))} devine</span></div>
-    <div class="spacer"></div>
-    <div class="center">
-      <div class="big-emoji">✏️</div>
-      <h2>Passe le téléphone à<br><span style="color:${color(p)};font-size:34px">${esc(name(p))}</span></h2>
-      <p>Le mot s'affiche et le chrono démarre dès que tu appuies.<br>${S.drawTime} secondes max — mais plus tu finis vite, plus ton dessin passe tôt !</p>
-      <p class="hint">${esc(name(S.guesser))}, toujours les yeux fermés 😉</p>
+    <div class="card"><label class="lbl">Joueurs (${n}/8)</label>${players}</div>
+    <div class="card stack">
+      ${isHost ? `
+        <div><label class="lbl">Temps pour dessiner</label>${seg("drawTime",[30,45,60,90].map(t=>[t,t+"s"]),set.drawTime)}</div>
+        <div><label class="lbl">Chacun devine…</label>${seg("turns",[1,2,3].map(t=>[t,t+" fois"]),set.turns)}</div>
+        <div><label class="lbl">Mots</label>${seg("level",[["facile","Faciles"],["difficile","Difficiles"],["mix","Mélange"]],set.level)}</div>
+      ` : `<p style="margin:0"><b>Réglages :</b> ${set.drawTime} s pour dessiner · chacun devine ${set.turns} fois · mots ${LEVELS[set.level]}</p>`}
     </div>
-    <div class="spacer"></div>
-    <button class="btn mint" id="go">Je suis prêt, montre le mot</button>
+    ${isHost
+      ? `<button class="btn pop" id="go" ${n<3?"disabled":""}>Lancer la partie</button>
+         ${n<3?`<p class="hint center">Il faut au moins 3 joueurs (encore ${3-n}).</p>`:""}`
+      : `<p class="center hand" style="font-size:20px">En attente que ${who(s.host)} lance la partie…</p>`}
+    <button class="btn ghost" id="rules" style="margin-top:10px">Comment on joue ?</button>
+    <div style="height:20px"></div>
   `);
-  $("#go").onclick=()=>drawScreen(p);
+  try{ if(window.qrcode){ const q=qrcode(0,"M"); q.addData(link); q.make(); $("#qr").innerHTML=q.createImgTag(5,8,"QR code"); } }catch(e){}
+  $("#share").onclick=async()=>{
+    if(navigator.share){ try{ await navigator.share({title:"Croquis Express",text:"Rejoins ma partie de Croquis Express ! Code : "+s.code,url:link}); }catch(e){} return; }
+    try{ await navigator.clipboard.writeText(link); toast("Lien copié !"); }catch(e){ toast(link); }
+  };
+  $("#quit").onclick=quitGame;
+  $("#rules").onclick=rules;
+  app.querySelectorAll("[data-kick]").forEach(b=>b.onclick=()=>act("kick",{target:b.dataset.kick},b));
+  if(isHost){
+    [["drawTime",Number],["turns",Number],["level",String]].forEach(([k,cast])=>{
+      $("#"+k).querySelectorAll("button").forEach(b=>b.onclick=()=>{
+        $("#"+k).querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+        act("settings",{settings:{...set,[k]:cast(b.dataset.v)}});
+      });
+    });
+    $("#go").onclick=e=>act("start",{},e.currentTarget);
+  }
 }
 
-/* ---- Écran de dessin ---- */
-function drawScreen(p){
+/* ================= Phase dessin ================= */
+function timerTick(s){
+  const total=s.settings.drawTime, el=(sNow()-s.startAt)/1000, left=total-el;
+  const t=$("#t"), b=$("#b");
+  if(t){ t.textContent = el<0 ? "…" : Math.max(0,Math.ceil(left))+"s"; t.classList.toggle("warn", el>=0 && left<=10); }
+  if(b) b.style.width = Math.max(0,Math.min(100,left/total*100))+"%";
+  return {el,left};
+}
+function progressHTML(){
+  const s=R.state;
+  return drawersOf(s).map(id=>`<div class="pl"><span class="dot" style="background:${colorOf(id)}"></span>
+    <span class="pname">${esc(nameOf(id))}</span>
+    <span>${R.done[id]!=null?`✅ <span class="hint">${R.done[id].toFixed(1)}s</span>`:"✏️ <span class='hint'>dessine…</span>"}</span></div>`).join("");
+}
+
+function drawScreen(){
+  const s=R.state, total=s.settings.drawTime;
   view(`
     <div class="topbar">
-      <div><div class="hint">${esc(name(p))}, dessine :</div><div class="word" style="font-size:30px">${esc(S.word)}</div></div>
-      <div class="timer" id="t">${S.drawTime}s</div>
+      <div><div class="hint">Manche ${s.round+1}/${s.totalRounds} · dessine :</div><div class="word" id="w" style="font-size:30px">…</div></div>
+      <div class="timer" id="t">${total}s</div>
     </div>
     <div class="bar"><div id="b" style="width:100%"></div></div>
-    <div class="canvas-wrap" id="wrap"><canvas id="c"></canvas></div>
-    <div class="tools" id="tools">
+    <div class="canvas-wrap" id="wrap"><canvas id="c"></canvas>
+      <div class="overlay" id="ov"><div>
+        <p style="margin:0">${who(s.guesser)} devine</p>
+        <div class="count" id="cnt">3</div>
+        <p style="margin:0">Prépare-toi à dessiner !</p>
+      </div></div>
+    </div>
+    <div class="tools">
       ${["#2b2340","#ff5d73","#4f7cff","#2ec4b6","#ffc145","#8b5a2b"].map((c,i)=>`<button class="sw ${i==0?"on":""}" data-c="${c}" style="background:${c}" aria-label="couleur"></button>`).join("")}
       <span style="flex:1"></span>
       <button class="tool on" data-w="5">fin</button>
       <button class="tool" data-w="14">épais</button>
       <button class="tool" id="er">gomme</button>
-      <button class="tool" id="undo">↶</button>
-      <button class="tool" id="clr">🗑</button>
+      <button class="tool" id="undo" aria-label="Annuler">↶</button>
+      <button class="tool" id="clr" aria-label="Tout effacer">🗑</button>
     </div>
     <button class="btn pop" id="done">J'ai fini !</button>
   `);
-  const pad = makePad($("#c"), $("#wrap"));
+  const pad=makePad($("#c"),$("#wrap"));
   app.querySelectorAll(".sw").forEach(b=>b.onclick=()=>{ pad.color=b.dataset.c; pad.erase=false; $("#er").classList.remove("on"); app.querySelectorAll(".sw").forEach(x=>x.classList.toggle("on",x===b)); });
   app.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{ pad.width=+b.dataset.w; app.querySelectorAll("[data-w]").forEach(x=>x.classList.toggle("on",x===b)); });
   $("#er").onclick=()=>{ pad.erase=!pad.erase; $("#er").classList.toggle("on",pad.erase); };
   $("#undo").onclick=()=>pad.undo();
   $("#clr").onclick=()=>pad.clear();
 
-  const start = performance.now();
-  let finished=false;
+  let started=false, finished=false;
   const finish=()=>{
-    if(finished) return; finished=true; stopTimer();
-    const secs = Math.min((performance.now()-start)/1000, S.drawTime);
-    S.drawings.push({player:p, time:secs, img:pad.toImage(), empty:pad.isEmpty()});
-    S.drawIdx++;
-    if(S.drawIdx < S.queue.length) handoff(); else toGuesser();
+    if(finished || !started) return; finished=true;
+    const time=Math.min(Math.max(0,(sNow()-s.startAt)/1000), total);
+    sendDrawing({game:s.game, round:s.round, time, img:pad.toImage(), empty:pad.isEmpty()});
   };
   $("#done").onclick=finish;
-  timerId=setInterval(()=>{
-    const left = S.drawTime - (performance.now()-start)/1000;
-    const t=$("#t"), b=$("#b"); if(!t) return;
-    t.textContent = Math.max(0,Math.ceil(left))+"s";
-    t.classList.toggle("warn", left<=10);
-    b.style.width = Math.max(0,left/S.drawTime*100)+"%";
+  every(200,()=>{
+    const {el,left}=timerTick(s);
+    if(el<0){ const c=$("#cnt"); if(c) c.textContent=Math.ceil(-el); return; }
+    if(!started){ started=true; const ov=$("#ov"); if(ov) ov.remove(); $("#w").textContent=s.word; if(navigator.vibrate) navigator.vibrate(60); }
     if(left<=0) finish();
-  },200);
+  });
+}
+
+async function sendDrawing(data){
+  const tag=data.game+"-"+data.round;
+  sentFor=tag; upload={tag, data, status:"sending"};
+  render();
+  for(let i=0;i<4;i++){
+    try{
+      const j=await call("submit",data);
+      if(upload && upload.tag===tag) upload.status="ok";
+      apply(j); if(onUpdate) onUpdate();
+      return;
+    }catch(e){
+      if(upload && upload.tag===tag) upload.err=e.message;
+      await new Promise(r=>setTimeout(r,800*(i+1)));
+    }
+  }
+  if(upload && upload.tag===tag){ upload.status="error"; if(onUpdate) onUpdate(); }
+}
+
+function drawWaitScreen(){
+  const s=R.state;
+  view(`
+    <div class="topbar"><span class="pill">Manche ${s.round+1} / ${s.totalRounds}</span><div class="timer" id="t"></div></div>
+    <div class="bar"><div id="b" style="width:100%"></div></div>
+    <div class="center">
+      <div class="big-emoji">✅</div>
+      <h2 id="st">Dessin envoyé !</h2>
+      <p>Le mot était <b>${esc(s.word)}</b>. On attend les autres dessinateurs…</p>
+      <div id="retry"></div>
+    </div>
+    <div class="card"><label class="lbl">Les dessinateurs</label><div id="prog"></div></div>
+  `);
+  every(250,()=>timerTick(s));
+  onUpdate=()=>{
+    $("#prog").innerHTML=progressHTML();
+    const mine=R.done[myId];
+    const u=upload && upload.tag===roundTag() ? upload : null;
+    let txt="Dessin envoyé !", retry="";
+    if(mine!=null) txt=`Dessin envoyé en ${mine.toFixed(1)} s !`;
+    else if(u && u.status==="sending") txt="Envoi du dessin…";
+    else if(u && u.status==="error"){ txt="Échec de l'envoi 😕"; retry=`<p class="hint">${esc(u.err||"")}</p><button class="btn small sky" id="rt">Réessayer</button>`; }
+    $("#st").textContent=txt;
+    if($("#retry").innerHTML!==retry){ $("#retry").innerHTML=retry; const b=$("#rt"); if(b) b.onclick=()=>sendDrawing(u.data); }
+  };
+}
+
+function drawGuesserScreen(){
+  const s=R.state;
+  view(`
+    <div class="topbar"><span class="pill">Manche ${s.round+1} / ${s.totalRounds}</span><div class="timer" id="t"></div></div>
+    <div class="bar"><div id="b" style="width:100%"></div></div>
+    <div class="center">
+      <div class="big-emoji">🙈</div>
+      <h2>C'est toi qui devines !</h2>
+      <p>Ne regarde pas les écrans des autres. Les dessins arrivent sur ton téléphone dès que tout le monde a fini.</p>
+    </div>
+    <div class="card"><label class="lbl">Les dessinateurs</label><div id="prog"></div></div>
+  `);
+  every(250,()=>timerTick(s));
+  onUpdate=()=>{ $("#prog").innerHTML=progressHTML(); };
 }
 
 function makePad(canvas, wrap){
-  const ctx = canvas.getContext("2d");
-  const pad = {color:"#2b2340", width:5, erase:false, strokes:[], cur:null};
+  const ctx=canvas.getContext("2d");
+  const pad={color:"#2b2340", width:5, erase:false, strokes:[], cur:null};
   let W=0,H=0;
   function size(){
-    const r = wrap.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio||1, 2);
+    const r=wrap.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1,2);
     W=r.width; H=r.height;
-    canvas.width = Math.round(W*dpr); canvas.height = Math.round(H*dpr);
+    canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr);
     ctx.setTransform(dpr,0,0,dpr,0,0); redraw();
   }
   function line(s){
@@ -303,7 +508,7 @@ function makePad(canvas, wrap){
     ctx.lineCap="round"; ctx.lineJoin="round";
     const pts=s.pts.map(([x,y])=>[x*W,y*H]);
     ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
-    if(pts.length===1){ ctx.lineTo(pts[0][0]+0.01,pts[0][1]); }
+    if(pts.length===1) ctx.lineTo(pts[0][0]+0.01,pts[0][1]);
     for(let i=1;i<pts.length-1;i++){ const mx=(pts[i][0]+pts[i+1][0])/2, my=(pts[i][1]+pts[i+1][1])/2; ctx.quadraticCurveTo(pts[i][0],pts[i][1],mx,my); }
     if(pts.length>1) ctx.lineTo(pts[pts.length-1][0],pts[pts.length-1][1]);
     ctx.stroke();
@@ -323,150 +528,151 @@ function makePad(canvas, wrap){
     const o=out.getContext("2d"); o.fillStyle="#fff"; o.fillRect(0,0,600,800);
     const sc=Math.min(600/W,800/H), ox=(600-W*sc)/2, oy=(800-H*sc)/2;
     o.setTransform(sc,0,0,sc,ox,oy); o.drawImage(canvas,0,0,W,H);
-    return out.toDataURL("image/jpeg",0.8);
+    return out.toDataURL("image/jpeg",0.75);
   };
   size();
-  window.addEventListener("resize", size, {once:false});
+  window.addEventListener("resize",size);
+  cleanup.push(()=>window.removeEventListener("resize",size));
   return pad;
 }
 
-/* ---- Devineur ---- */
-function toGuesser(){
-  stopTimer();
-  S.drawings.sort((a,b)=>a.time-b.time);
-  view(`
-    <div class="topbar"><span class="pill">Manche ${S.round+1} / ${S.totalRounds}</span></div>
-    <div class="spacer"></div>
-    <div class="center">
-      <div class="big-emoji">🕵️</div>
-      <h2>Tout le monde a fini !<br>Passe le téléphone à<br><span style="color:${color(S.guesser)};font-size:34px">${esc(name(S.guesser))}</span></h2>
-      <p>Tu vas voir les ${S.drawings.length} dessins un par un, du plus rapide au plus lent. Trouve le mot le plus tôt possible !</p>
-    </div>
-    <div class="spacer"></div>
-    <button class="btn sky" id="go">Voir le premier dessin</button>
-  `);
-  $("#go").onclick=()=>{ S.revealIdx=0; guessScreen(); };
-}
-
-function norm(s){
-  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/œ/g,"oe")
-    .replace(/[^a-z0-9 ]/g," ").replace(/\b(le|la|les|l|un|une|des|du|de|d)\b/g," ")
-    .split(/\s+/).filter(Boolean).map(w=>w.length>3?w.replace(/(s|x)$/,""):w).join(" ");
-}
-function lev(a,b){
-  const m=a.length,n=b.length, d=Array.from({length:m+1},(_,i)=>[i].concat(Array(n).fill(0)));
-  for(let j=1;j<=n;j++) d[0][j]=j;
-  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++) d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
-  return d[m][n];
-}
-function isRight(guess){
-  const g=norm(guess), w=norm(S.word);
-  if(!g) return false;
-  if(g===w) return true;
-  const tol = w.length>=8 ? 2 : (w.length>=4 ? 1 : 0);
-  return lev(g,w)<=tol;
+/* ================= Phase devine ================= */
+let prefetched="";
+function prefetch(){
+  const s=R.state, tag=roundTag();
+  if(prefetched===tag) return; prefetched=tag;
+  s.drawings.forEach(d=>{ const i=new Image(); i.src=imgUrl(d.p); });
 }
 
 function guessScreen(){
-  const k=S.drawings.length, d=S.drawings[S.revealIdx];
-  const pts = k - S.revealIdx;
+  const s=R.state, k=s.drawings.length, d=s.drawings[s.revealIdx], pts=k-s.revealIdx;
+  const last=s.guesses[s.guesses.length-1];
+  const fb = last && !last.ok && last.i===s.revealIdx-1 ? `« ${esc(last.text)} » ? Non !` : "";
+  prefetch();
   view(`
     <div class="topbar">
-      <span class="pill">Dessin ${S.revealIdx+1} / ${k}</span>
-      <span class="pill">⏱ ${d.time.toFixed(1)}s</span>
+      <span class="pill">Dessin ${s.revealIdx+1} / ${k}</span>
+      <span class="pill">⏱ ${d.t.toFixed(1)}s</span>
       <span class="pill" style="background:var(--sun)">${pts} pt${pts>1?"s":""} en jeu</span>
     </div>
-    <img class="drawing pop-in" src="${d.img}" alt="Dessin ${S.revealIdx+1}">
-    ${d.empty?`<p class="center hint">(ce joueur n'a rien dessiné…)</p>`:""}
-    <div style="height:12px"></div>
-    <div class="feedback" id="fb"></div>
+    <img class="drawing small pop-in" src="${imgUrl(d.p)}" alt="Dessin ${s.revealIdx+1}">
+    ${d.e?`<p class="center hint">(ce joueur n'a rien dessiné…)</p>`:""}
+    <div style="height:8px"></div>
+    <div class="feedback ko ${fb?"shake":""}">${fb}</div>
     <form id="f" class="row" style="margin:6px 0 10px">
       <input type="text" id="g" placeholder="C'est quoi ?" autocomplete="off" autocapitalize="off" spellcheck="false" style="flex:3">
       <button class="btn mint" style="flex:1">OK</button>
     </form>
     <div class="row">
-      <button class="btn ghost" id="pass">${S.revealIdx<k-1?"Dessin suivant →":"J'abandonne"}</button>
-      <button class="btn ghost small" id="ok" title="Si le groupe accepte ta réponse (synonyme…)">Le groupe valide ✓</button>
+      <button class="btn ghost" id="pass">${s.revealIdx<k-1?"Dessin suivant →":"J'abandonne"}</button>
+      <button class="btn ghost small" id="ok">Le groupe valide ✓</button>
     </div>
     <p class="hint center" style="margin-top:8px">Tu peux aussi répondre à voix haute : si le groupe dit que c'est bon, appuie sur « Le groupe valide ».</p>
   `);
-  const g=$("#g"); setTimeout(()=>g.focus(),100);
-  $("#f").onsubmit=e=>{
-    e.preventDefault();
-    if(!g.value.trim()) return;
-    if(isRight(g.value)){ found(); }
-    else{
-      const fb=$("#fb"); fb.className="feedback ko shake"; fb.textContent="« "+g.value.trim()+" » ? Non !";
-      g.value="";
-      setTimeout(()=>{ if(S.revealIdx<k-1){ S.revealIdx++; guessScreen(); } else { found(true); } },1100);
-    }
-  };
-  $("#pass").onclick=()=>{ if(S.revealIdx<k-1){ S.revealIdx++; guessScreen(); } else found(true); };
-  $("#ok").onclick=()=>found();
+  const g=$("#g"), base={round:s.round, idx:s.revealIdx};
+  setTimeout(()=>g.focus(),100);
+  $("#f").onsubmit=e=>{ e.preventDefault(); const text=g.value.trim(); if(text) act("guess",{...base,text},e.target.querySelector("button")); };
+  $("#pass").onclick=e=>act("pass",base,e.currentTarget);
+  $("#ok").onclick=e=>act("accept",base,e.currentTarget);
 }
 
-function found(fail){
-  const k=S.drawings.length;
-  let gPts=0, artist=null;
-  if(!fail){
-    S.foundAt=S.revealIdx; gPts = k - S.revealIdx; artist = S.drawings[S.revealIdx].player;
-    S.scores[S.guesser]+=gPts; S.scores[artist]+=2;
-  } else S.foundAt=-1;
-  S.history.push({word:S.word, guesser:S.guesser, foundAt:S.foundAt});
-  const gal = S.drawings.map((d,i)=>`
-    <figure class="${i===S.foundAt?"win":""}">
-      <img src="${d.img}" alt="">
-      <figcaption><b style="color:${color(d.player)}">${esc(name(d.player))}</b> · ${d.time.toFixed(1)}s${i===S.foundAt?" · ✓ +2":""}</figcaption>
-    </figure>`).join("");
-  const last = S.round+1>=S.totalRounds;
+function watchScreen(){
+  const s=R.state, k=s.drawings.length, d=s.drawings[s.revealIdx], pts=k-s.revealIdx;
+  prefetch();
+  const list=s.guesses.length
+    ? s.guesses.map(x=>`<div>❌ « ${esc(x.text)} » <span class="hint">(dessin ${x.i+1})</span></div>`).join("")
+    : `<p class="hint" style="margin:0">Pas encore de réponse…</p>`;
   view(`
-    <div class="center pop-in">
-      <div class="big-emoji">${fail?"😅":"🎉"}</div>
-      <p style="margin:0">Le mot était</p>
-      <div class="word">${esc(S.word)}</div>
-      <h2 style="font-size:20px">${fail
-        ? `Personne n'a été trouvé cette fois !`
-        : `${esc(name(S.guesser))} trouve au dessin n°${S.foundAt+1} : <span style="color:var(--mint)">+${gPts}</span> · ${esc(name(artist))} <span style="color:var(--mint)">+2</span>`}</h2>
+    <div class="topbar">
+      <span class="pill">Dessin ${s.revealIdx+1} / ${k}</span>
+      <span class="pill" style="background:var(--sun)">${pts} pt${pts>1?"s":""} en jeu</span>
     </div>
-    <div class="card"><div class="gallery">${gal}</div></div>
+    <h2 class="center">${who(s.guesser)} devine… <span class="hint" style="font-size:16px;font-weight:400">(mot : ${esc(s.word)})</span></h2>
+    <img class="drawing small pop-in" src="${imgUrl(d.p)}" alt="">
+    <p class="center hint">Dessin de ${who(d.p)} · ${d.t.toFixed(1)}s${d.e?" · (vide)":""}</p>
+    <div class="card"><label class="lbl">Ses réponses</label><div class="guesses">${list}</div></div>
+    <p class="hint center">Chut, pas d'indice ! 🤫</p>
+    <button class="btn ghost small" id="skip" style="align-self:center;margin-top:6px">Passer la manche</button>
+  `);
+  $("#skip").onclick=()=>confirmBox("Passer la manche ?", `À utiliser seulement si ${esc(nameOf(s.guesser))} a quitté la partie. Personne ne marque de points.`, "Passer", ()=>act("skip",{round:s.round}));
+}
+
+/* ================= Résultats ================= */
+function scoreList(){
+  const s=R.state;
+  return s.order.slice().sort((a,b)=>(s.scores[b]||0)-(s.scores[a]||0))
+    .map(id=>`<div class="score"><span><span class="dot" style="display:inline-block;vertical-align:middle;background:${colorOf(id)};margin-right:8px"></span>${esc(nameOf(id))}${id===myId?' <span class="hint">(toi)</span>':""}</span><b>${s.scores[id]||0}</b></div>`).join("");
+}
+
+function resultScreen(){
+  const s=R.state, res=s.result, last=s.round+1>=s.totalRounds;
+  const gal=s.drawings.map((d,i)=>`
+    <figure class="${i===res.foundAt?"win":""}">
+      <img src="${imgUrl(d.p)}" alt="" loading="lazy">
+      <figcaption><b style="color:${colorOf(d.p)}">${esc(nameOf(d.p))}</b> · ${d.t.toFixed(1)}s${i===res.foundAt?" · ✓ +2":""}</figcaption>
+    </figure>`).join("");
+  view(`
+    <div class="topbar"><span class="pill">Manche ${s.round+1} / ${s.totalRounds}</span><button class="btn ghost small" id="quit">Quitter</button></div>
+    <div class="center pop-in">
+      <div class="big-emoji">${res.ok?"🎉":"😅"}</div>
+      <p style="margin:0">Le mot était</p>
+      <div class="word">${esc(s.word)}</div>
+      <h2 style="font-size:20px">${res.ok
+        ? `${who(s.guesser)} trouve au dessin n°${res.foundAt+1} : <span style="color:var(--mint)">+${res.gPts}</span> · ${who(res.artist)} <span style="color:var(--mint)">+2</span>`
+        : `${who(s.guesser)} n'a pas trouvé cette fois !`}</h2>
+    </div>
+    ${gal?`<div class="card"><div class="gallery">${gal}</div></div>`:`<p class="center">Personne n'a envoyé de dessin.</p>`}
     <div class="card">${scoreList()}</div>
     <button class="btn pop" id="next">${last?"Voir le classement final 🏆":"Manche suivante →"}</button>
+    <p class="hint center">N'importe quel joueur peut passer à la suite.</p>
     <div style="height:20px"></div>
   `);
-  $("#next").onclick=()=>{ S.round++; if(last) finale(); else newRound(); };
+  $("#quit").onclick=quitGame;
+  $("#next").onclick=e=>act("next",{round:s.round},e.currentTarget);
 }
 
-function scoreList(){
-  return S.players.map((_,i)=>i).sort((a,b)=>S.scores[b]-S.scores[a])
-    .map((i,r)=>`<div class="score"><span><span class="dot" style="display:inline-block;vertical-align:middle;background:${color(i)};margin-right:8px"></span>${esc(name(i))}</span><b>${S.scores[i]}</b></div>`).join("");
-}
-
-function finale(){
-  const order=S.players.map((_,i)=>i).sort((a,b)=>S.scores[b]-S.scores[a]);
-  const top=S.scores[order[0]];
-  const winners=order.filter(i=>S.scores[i]===top);
+function finalScreen(){
+  const s=R.state;
+  const order=s.order.slice().sort((a,b)=>(s.scores[b]||0)-(s.scores[a]||0));
+  const top=s.scores[order[0]]||0, winners=order.filter(id=>(s.scores[id]||0)===top);
   const medals=["🥇","🥈","🥉"];
   view(`
     <div class="center pop-in">
       <div class="big-emoji">🏆</div>
       <h1 style="font-size:32px">${winners.length>1?"Égalité !":"Victoire de"}</h1>
-      <div class="word">${winners.map(i=>esc(name(i))).join(" & ")}</div>
+      <div class="word">${winners.map(id=>esc(nameOf(id))).join(" & ")}</div>
       <p>avec ${top} point${top>1?"s":""}</p>
     </div>
     <div class="card">
-      ${order.map((i,r)=>`<div class="score"><span>${medals[r]||"·"} <span style="color:${color(i)};font-weight:600">${esc(name(i))}</span></span><b>${S.scores[i]}</b></div>`).join("")}
+      ${order.map((id,r)=>`<div class="score"><span>${medals[r]||"·"} <span style="color:${colorOf(id)};font-weight:600">${esc(nameOf(id))}</span></span><b>${s.scores[id]||0}</b></div>`).join("")}
     </div>
     <div class="card"><label class="lbl">Les mots de la partie</label>
-      <p>${S.history.map(h=>`${esc(h.word)} ${h.foundAt>=0?"✓":"✗"}`).join(" · ")}</p></div>
-    <button class="btn pop" id="again">Rejouer</button>
-    <button class="btn ghost" id="home" style="margin-top:10px">Changer les joueurs</button>
+      <p>${s.history.map(h=>`${esc(h.word)} ${h.foundAt>=0?"✓":"✗"}`).join(" · ")}</p></div>
+    <button class="btn pop" id="again">Rejouer (retour au salon)</button>
+    <button class="btn ghost" id="quit" style="margin-top:10px">Quitter</button>
     <div style="height:20px"></div>
   `);
-  $("#again").onclick=startGame;
-  $("#home").onclick=home;
+  $("#again").onclick=e=>act("lobby",{game:s.game},e.currentTarget);
+  $("#quit").onclick=quitGame;
 }
 
-home();
+/* ================= Démarrage ================= */
+(async function boot(){
+  const inv=(new URLSearchParams(location.search).get("r")||"").toUpperCase();
+  const saved=LS.get("cx-room");
+  const c=/^[A-Z]{4}$/.test(inv) ? inv : saved;
+  if(c && /^[A-Z]{4}$/.test(c)){
+    try{
+      const r=await fetch(`/api/room?code=${c}&id=${encodeURIComponent(myId)}`,{cache:"no-store"});
+      const j=await r.json().catch(()=>null);
+      if(r.ok && j && j.players.some(p=>p.id===myId)){ code=c; enterRoom(j); return; }
+      if(r.status===404 && inv){ history.replaceState(null,"",location.pathname); home(); toast("Cette partie n'existe plus."); LS.del("cx-room"); return; }
+      if(r.status>=500 && j && j.error){ home(); toast(j.error); return; }
+    }catch(e){}
+  }
+  if(saved && saved!==inv) LS.del("cx-room");
+  home();
+})();
 </script>
 </body>
 </html>
