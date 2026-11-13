@@ -27,3 +27,7 @@ L'état des parties est stocké dans **Upstash Redis** (offre gratuite suffisant
 ## Tester en local
 
 `vercel dev` (avec la CLI Vercel) lance le site et l'API. Sans variables Upstash, l'API utilise un stockage en mémoire, pratique pour tester en local.
+
+## Déploiement automatique
+
+Le projet Vercel est relié à ce repo GitHub : chaque push sur la branche de production est mis en ligne automatiquement (environ 30 s).
