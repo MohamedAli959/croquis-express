@@ -15,64 +15,12 @@
  */
 const crypto = require("crypto");
 const { WORDS } = require("./_words.js");
+const { fail, db, hobj, cleanName, validId, genCode, send, readBody, sendError } = require("./_lib.js");
 
 const TTL = 6 * 3600;          // durée de vie d'une partie (s)
 const COUNTDOWN = 3500;        // compte à rebours avant de dessiner (ms)
 const GRACE = 5000;            // délai d'envoi toléré après la fin du chrono (ms)
 const MIN_PLAYERS = 3, MAX_PLAYERS = 8;
-
-class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
-const fail = (status, msg) => { throw new HttpError(status, msg); };
-
-/* ================= Stockage ================= */
-function dbConf() {
-  const e = process.env;
-  const pairs = [["KV_REST_API_URL", "KV_REST_API_TOKEN"], ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"]];
-  for (const [u, t] of pairs) if (e[u] && e[t]) return { url: e[u], token: e[t] };
-  // variables avec un préfixe personnalisé (ex : STORAGE_KV_REST_API_URL)
-  for (const k of Object.keys(e)) for (const [u, t] of pairs) {
-    if (k.endsWith(u)) { const tk = k.slice(0, -u.length) + t; if (e[k] && e[tk]) return { url: e[k], token: e[tk] }; }
-  }
-  return null;
-}
-const CONF = dbConf();
-
-// Stockage en mémoire, uniquement pour tester en local (hors Vercel).
-const mem = new Map();
-function memEntry(k) { const e = mem.get(k); if (e && e.exp && e.exp < Date.now()) { mem.delete(k); return undefined; } return e; }
-function memExec([cmd, k, ...a]) {
-  const e = memEntry(k);
-  switch (cmd) {
-    case "GET": return e ? e.v : null;
-    case "SET": {
-      if (a.includes("NX") && e) return null;
-      const i = a.indexOf("EX");
-      mem.set(k, { v: a[0], exp: i >= 0 ? Date.now() + Number(a[i + 1]) * 1000 : 0 });
-      return "OK";
-    }
-    case "DEL": return mem.delete(k) ? 1 : 0;
-    case "EXPIRE": if (e) e.exp = Date.now() + Number(a[0]) * 1000; return e ? 1 : 0;
-    case "HSET": { let h = e; if (!h) { h = { v: new Map(), exp: 0 }; mem.set(k, h); } h.v.set(a[0], a[1]); return 1; }
-    case "HDEL": return e && e.v.delete(a[0]) ? 1 : 0;
-    case "HGETALL": return e ? [...e.v].flat() : [];
-  }
-  throw new Error("Commande inconnue " + cmd);
-}
-
-async function db(cmds) {
-  if (CONF) {
-    const r = await fetch(CONF.url.replace(/\/+$/, "") + "/pipeline", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + CONF.token, "Content-Type": "application/json" },
-      body: JSON.stringify(cmds.map(c => c.map(String))),
-    });
-    if (!r.ok) throw new Error("Base de données : erreur HTTP " + r.status);
-    const out = await r.json();
-    return out.map(o => { if (o.error) throw new Error("Base de données : " + o.error); return o.result; });
-  }
-  if (process.env.VERCEL) fail(500, "La base de données n'est pas configurée : ajoute « Upstash for Redis » à ton projet Vercel puis redéploie (voir README).");
-  return cmds.map(c => memExec(c.map(String)));
-}
 
 const K = {
   st: c => `cx:${c}`,
@@ -81,13 +29,6 @@ const K = {
   img: (c, g, r, p) => `cx:${c}:i:${g}:${r}:${p}`,
   lock: (c, ...a) => `cx:${c}:l:${a.join(":")}`,
 };
-const hobj = a => {
-  const o = {};
-  if (Array.isArray(a)) for (let i = 0; i < a.length; i += 2) o[a[i]] = a[i + 1];
-  else if (a) Object.assign(o, a);
-  return o;
-};
-
 async function load(code) {
   if (!/^[A-Z]{4}$/.test(code || "")) fail(404, "Partie introuvable.");
   const [s, p, d] = await db([["GET", K.st(code)], ["HGETALL", K.pl(code)], ["HGETALL", K.done(code)]]);
@@ -201,16 +142,9 @@ function view(ctx, me) {
 }
 
 /* ================= Actions ================= */
-const cleanName = n => String(n || "").trim().replace(/\s+/g, " ").slice(0, 16) || "Joueur";
 const isMember = (ctx, id) => ctx.players.some(p => p.id === id);
 const mustBeHost = (ctx, id) => { if (ctx.st.host !== id) fail(403, "Seul l'hôte peut faire ça."); };
 const mustBeMember = (ctx, id) => { if (!isMember(ctx, id)) fail(403, "Tu ne fais pas partie de cette partie."); };
-
-function genCode() {
-  const L = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  let c = ""; for (let i = 0; i < 4; i++) c += L[crypto.randomInt(L.length)];
-  return c;
-}
 
 async function create(b) {
   const name = cleanName(b.name);
@@ -367,23 +301,6 @@ function guesserTurn(st, b) {
 }
 
 /* ================= HTTP ================= */
-function send(res, status, obj) {
-  res.statusCode = status;
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("Cache-Control", "no-store");
-  res.end(JSON.stringify(obj));
-}
-
-async function readBody(req) {
-  if (req.body != null) return typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body;
-  const chunks = [];
-  for await (const c of req) chunks.push(c);
-  const s = Buffer.concat(chunks).toString("utf8");
-  return s ? JSON.parse(s) : {};
-}
-
-const validId = id => typeof id === "string" && /^[A-Za-z0-9-]{8,64}$/.test(id);
-
 module.exports = async function handler(req, res) {
   try {
     const q = Object.fromEntries(new URL(req.url, "http://localhost").searchParams);
@@ -422,9 +339,7 @@ module.exports = async function handler(req, res) {
     if (!ctx) return send(res, 200, { ok: true });
     return send(res, 200, view(ctx, b.id));
   } catch (e) {
-    if (e instanceof HttpError) return send(res, e.status, { error: e.message });
-    console.error(e);
-    return send(res, 500, { error: e.message || "Erreur serveur." });
+    return sendError(res, e);
   }
 };
 

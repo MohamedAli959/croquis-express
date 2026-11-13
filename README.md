@@ -1,15 +1,21 @@
-# Croquis Express
+# Salle de Jeux
 
-Jeu de dessin multijoueur : chaque joueur joue **sur son propre téléphone**.
-Tout le monde dessine le même mot en même temps, un seul joueur devine, et les dessins les plus rapides passent en premier.
+Des jeux de soirée multijoueurs : chaque joueur joue **sur son propre téléphone**.
+
+| Jeu | Adresse | Principe |
+|---|---|---|
+| ✏️ Croquis Express | `/croquis/` | Tout le monde dessine le même mot le plus vite possible, un seul devine. |
+| 🎤 Karaoké Battle | `/karaoke/` | Chacun chante à son tour (avec des défis), le public réagit en direct et note de 1 à 5 étoiles. |
 
 ## Structure
 
-- `index.html` : le jeu (interface).
-- `api/room.js` : petite API serverless (Vercel) qui synchronise les parties entre les téléphones.
-- `api/_words.js` : les listes de mots (côté serveur, pour que le devineur ne puisse pas les lire).
+- `index.html` : la galerie des jeux (page d'accueil).
+- `croquis/index.html` et `api/room.js` (+ `api/_words.js`) : Croquis Express.
+- `karaoke/index.html` et `api/karaoke.js` : Karaoké Battle.
+- `api/_lib.js` : outils communs (stockage Redis, HTTP).
 
 L'état des parties est stocké dans **Upstash Redis** (offre gratuite suffisante).
+Le karaoké n'embarque aucune parole : le chanteur trouve la version karaoké sur YouTube (lien de recherche ou lien collé, lu directement dans la page).
 
 ## Mise en ligne sur Vercel
 
@@ -20,9 +26,9 @@ L'état des parties est stocké dans **Upstash Redis** (offre gratuite suffisant
 
 ## Jouer
 
-1. Un joueur ouvre le site, entre son prénom et appuie sur **Créer une partie**.
+1. Un joueur ouvre le site, choisit un jeu, entre son prénom et appuie sur **Créer une partie**.
 2. Les autres scannent le QR code, ouvrent le lien d'invitation, ou tapent le code à 4 lettres.
-3. L'hôte (👑) choisit les réglages et lance la partie (3 à 8 joueurs).
+3. L'hôte (👑) choisit les réglages et lance la partie.
 
 ## Tester en local
 
