@@ -30,4 +30,4 @@ L'état des parties est stocké dans **Upstash Redis** (offre gratuite suffisant
 
 ## Déploiement automatique
 
-Le projet Vercel est relié à ce repo GitHub : chaque push sur la branche de production est mis en ligne automatiquement (environ 30 s).
+Le projet Vercel est relié à ce repo GitHub : chaque push sur la branche `main` est mis en ligne automatiquement (environ 30 s).
