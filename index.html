@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Croquis Express</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#fff8ec; --ink:#2b2340; --soft:#6b6385; --line:#e7dcc8;
+    --pop:#ff5d73; --sun:#ffc145; --mint:#2ec4b6; --sky:#4f7cff; --card:#ffffff;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);font-family:'Fredoka',system-ui,sans-serif}
+  body{background-image:radial-gradient(#eadfcb 1px,transparent 1px);background-size:22px 22px}
+  #app{max-width:560px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;padding:16px}
+  h1{font-size:38px;margin:8px 0 2px;letter-spacing:-.5px;line-height:1}
+  h1 span{color:var(--pop)}
+  h2{font-size:26px;margin:4px 0 8px;line-height:1.15}
+  p{margin:6px 0;color:var(--soft);line-height:1.4}
+  .hand{font-family:'Patrick Hand',cursive}
+  .card{background:var(--card);border:2px solid var(--ink);border-radius:18px;padding:16px;box-shadow:4px 4px 0 var(--ink);margin:10px 0}
+  .btn{appearance:none;border:2px solid var(--ink);background:var(--sun);color:var(--ink);font:600 18px 'Fredoka',sans-serif;
+       padding:14px 18px;border-radius:14px;box-shadow:3px 3px 0 var(--ink);cursor:pointer;width:100%;transition:transform .05s}
+  .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .btn.pop{background:var(--pop);color:#fff}
+  .btn.mint{background:var(--mint);color:#fff}
+  .btn.sky{background:var(--sky);color:#fff}
+  .btn.ghost{background:#fff}
+  .btn.small{font-size:15px;padding:9px 12px;width:auto}
+  .row{display:flex;gap:10px;align-items:center}
+  .row > *{flex:1}
+  .stack{display:flex;flex-direction:column;gap:10px}
+  .spacer{flex:1}
+  label.lbl{font-weight:600;font-size:15px;display:block;margin:6px 0 6px}
+  input[type=text]{width:100%;font:500 18px 'Fredoka',sans-serif;padding:11px 12px;border:2px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink)}
+  input[type=text]:focus{outline:3px solid var(--sun)}
+  .seg{display:flex;border:2px solid var(--ink);border-radius:12px;overflow:hidden}
+  .seg button{flex:1;border:0;background:#fff;font:600 15px 'Fredoka';padding:10px 4px;color:var(--ink);cursor:pointer}
+  .seg button+button{border-left:2px solid var(--ink)}
+  .seg button.on{background:var(--ink);color:#fff}
+  .pl{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .dot{width:14px;height:14px;border-radius:50%;flex:none;border:2px solid var(--ink)}
+  .x{border:2px solid var(--ink);background:#fff;border-radius:10px;width:42px;height:46px;font-size:20px;cursor:pointer;flex:none}
+  .center{text-align:center}
+  .big-emoji{font-size:64px;line-height:1;margin:10px 0}
+  .word{font-size:40px;font-weight:700;color:var(--pop);margin:4px 0;line-height:1.05}
+  .pill{display:inline-block;border:2px solid var(--ink);border-radius:999px;padding:3px 10px;font-weight:600;font-size:14px;background:#fff}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+  .timer{font-weight:700;font-size:22px;min-width:64px;text-align:right}
+  .timer.warn{color:var(--pop)}
+  .bar{height:8px;border:2px solid var(--ink);border-radius:999px;overflow:hidden;background:#fff;margin-bottom:8px}
+  .bar > div{height:100%;background:var(--mint);transition:width .25s linear}
+  .canvas-wrap{position:relative;flex:1;min-height:260px;background:#fff;border:2px solid var(--ink);border-radius:16px;overflow:hidden;box-shadow:4px 4px 0 var(--ink)}
+  canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+  .tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0}
+  .sw{width:34px;height:34px;border-radius:50%;border:2px solid var(--ink);cursor:pointer;flex:none}
+  .sw.on{outline:3px solid var(--sun);outline-offset:2px}
+  .tool{border:2px solid var(--ink);background:#fff;border-radius:10px;height:36px;min-width:38px;padding:0 8px;font:600 15px 'Fredoka';cursor:pointer;color:var(--ink)}
+  .tool.on{background:var(--ink);color:#fff}
+  .drawing{width:100%;aspect-ratio:3/4;object-fit:contain;background:#fff;border:2px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);display:block}
+  .gallery{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .gallery figure{margin:0}
+  .gallery img{width:100%;aspect-ratio:3/4;object-fit:contain;background:#fff;border:2px solid var(--ink);border-radius:12px}
+  .gallery figcaption{font-size:14px;margin-top:4px;color:var(--soft)}
+  .gallery figure.win img{border-color:var(--mint);box-shadow:0 0 0 3px var(--mint)}
+  .score{display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:2px dashed var(--line);font-size:18px}
+  .score:last-child{border-bottom:0}
+  .score b{font-size:22px}
+  .feedback{font-weight:700;font-size:20px;min-height:28px;text-align:center}
+  .feedback.ok{color:var(--mint)} .feedback.ko{color:var(--pop)}
+  .shake{animation:shake .35s}
+  @keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+  .pop-in{animation:popin .35s ease-out}
+  @keyframes popin{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+  .hint{font-size:14px;color:var(--soft)}
+  .steps{padding-left:20px;margin:6px 0;color:var(--soft);line-height:1.5}
+  .modal{position:fixed;inset:0;background:rgba(43,35,64,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:20}
+  .modal .card{max-width:420px;width:100%}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ============ Mots ============ */
+const WORDS = {
+  facile: ["chat","chien","maison","soleil","voiture","arbre","pomme","banane","poisson","fleur","lune","étoile","bateau","avion","vélo","chapeau","lunettes","parapluie","clé","téléphone","pizza","glace","gâteau","oiseau","serpent","escargot","papillon","araignée","cœur","nuage","pluie","montagne","plage","château","fusée","robot","fantôme","citrouille","bougie","horloge","livre","crayon","ciseaux","chaussure","chaussette","t-shirt","pantalon","couronne","épée","guitare","piano","tambour","ballon","football","tennis","lit","chaise","table","lampe","télévision","ordinateur","appareil photo","cadeau","sapin de Noël","bonhomme de neige","œuf","poule","vache","cochon","mouton","cheval","lapin","souris","girafe","éléphant","lion","tigre","singe","pingouin","tortue","grenouille","requin","baleine","pieuvre","crabe","abeille","dragon","sirène","licorne","pirate","sorcière","roi","clown","bébé","dent","œil","main","pied","nez","oreille","feu","arc-en-ciel","volcan","île","pont","tente","train","bus","camion","hélicoptère","sous-marin","tracteur","carotte","tomate","fraise","cerise","ananas","champignon","hamburger","frites","hot-dog","croissant","baguette","fromage","café","bouteille","verre","fourchette","cuillère","casserole","marteau","échelle","boussole","ancre","drapeau","trophée","médaille","boîte aux lettres","enveloppe","ampoule","aimant","loupe","balai","brosse à dents","savon","miroir","baignoire","toilettes","porte","fenêtre","escalier"],
+  difficile: ["tour Eiffel","embouteillage","pique-nique","feu d'artifice","montagnes russes","plongée sous-marine","cascade","tempête","tremblement de terre","éclipse","astronaute","chevalier","momie","vampire","zombie","extraterrestre","cowboy","pompier","policier","chirurgien","dentiste","magicien","jongleur","funambule","marionnette","toboggan","balançoire","manège","grande roue","patinoire","ski","surf","parachute","montgolfière","phare","moulin à vent","igloo","pyramide","cactus","palmier","désert","jungle","marais","grotte","barrage","autoroute","rond-point","feu rouge","parking","ascenseur","escalator","distributeur","caddie","caisse enregistreuse","codebarre","réveil","somnambule","cauchemar","ronfler","éternuer","bâiller","pleurer","rire","danser","nager","courir","sauter","grimper","pêcher","cuisiner","bricoler","jardiner","tricoter","peindre","photographier","selfie","wifi","batterie vide","mot de passe","embrasser","mariage","anniversaire","enterrement de vie de garçon","déménagement","vacances","rentrée scolaire","examen","prison","tribunal","hôpital","pharmacie","boulangerie","bibliothèque","musée","cinéma","théâtre","cirque","zoo","aquarium","ferme","usine","chantier","cimetière","station-service","aéroport","gare","port","fête foraine","karaoké","bowling","flipper","jeu vidéo","manette","casque audio","micro","haut-parleur","podcast","streaming","télécommande","coup de soleil","boule de neige","bonhomme de pain d'épices","raclette","fondue","crêpe","sushi","kebab","barbe à papa","pop-corn","chewing-gum","sucette","marmite","chaudron","balance","sablier","boule de cristal","trésor","carte au trésor","labyrinthe","puzzle","domino","dé","échecs","cartes à jouer","loto","tirelire","impôts","facture","lune de miel","jumeaux","fantôme de l'opéra","super-héros","dinosaure","mammouth","yéti","loup-garou","Père Noël","lapin de Pâques","fée","génie de la lampe"]
+};
+
+/* ============ État ============ */
+const COLORS = ["#ff5d73","#4f7cff","#2ec4b6","#ffc145","#a259ff","#ff8c42","#3bb273","#e84a9b"];
+const S = {
+  players: ["","","",""],
+  turns: 1,       // nombre de fois où chacun devine
+  drawTime: 60,
+  level: "facile",
+  // partie
+  scores: [], round: 0, totalRounds: 0, guesser: 0,
+  word: "", used: new Set(),
+  queue: [], drawIdx: 0, drawings: [], revealIdx: 0, foundAt: -1, history: []
+};
+try{ const saved = JSON.parse(localStorage.getItem("croquis-setup")||"null");
+  if(saved){ Object.assign(S, {players:saved.players||S.players, turns:saved.turns||1, drawTime:saved.drawTime||60, level:saved.level||"facile"}); } }catch(e){}
+
+const app = document.getElementById("app");
+const esc = s => String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const name = i => S.players[i] || ("Joueur " + (i+1));
+const color = i => COLORS[i % COLORS.length];
+function view(html){ app.innerHTML = html; window.scrollTo(0,0); }
+function $(sel){ return app.querySelector(sel); }
+let timerId = null;
+function stopTimer(){ if(timerId){ clearInterval(timerId); timerId=null; } }
+
+/* ============ Accueil ============ */
+function home(){
+  stopTimer();
+  const pl = S.players.map((p,i)=>`
+    <div class="pl">
+      <span class="dot" style="background:${color(i)}"></span>
+      <input type="text" data-i="${i}" placeholder="Joueur ${i+1}" value="${esc(p)}" maxlength="16">
+      ${S.players.length>3?`<button class="x" data-rm="${i}" aria-label="Retirer">×</button>`:""}
+    </div>`).join("");
+  view(`
+    <h1>Croquis <span>Express</span></h1>
+    <p class="hand" style="font-size:20px">Tout le monde dessine, un seul devine… et les plus rapides passent en premier !</p>
+
+    <div class="card">
+      <label class="lbl">Joueurs (3 à 8)</label>
+      <div id="pls">${pl}</div>
+      ${S.players.length<8?`<button class="btn ghost small" id="add">+ Ajouter un joueur</button>`:""}
+    </div>
+
+    <div class="card stack">
+      <div><label class="lbl">Temps pour dessiner</label>
+        <div class="seg" id="time">${[30,45,60,90].map(t=>`<button data-v="${t}" class="${S.drawTime==t?"on":""}">${t}s</button>`).join("")}</div></div>
+      <div><label class="lbl">Chacun devine…</label>
+        <div class="seg" id="turns">${[1,2,3].map(t=>`<button data-v="${t}" class="${S.turns==t?"on":""}">${t} fois</button>`).join("")}</div></div>
+      <div><label class="lbl">Mots</label>
+        <div class="seg" id="level"><button data-v="facile" class="${S.level=="facile"?"on":""}">Faciles</button><button data-v="difficile" class="${S.level=="difficile"?"on":""}">Difficiles</button><button data-v="mix" class="${S.level=="mix"?"on":""}">Mélange</button></div></div>
+    </div>
+
+    <button class="btn pop" id="go" style="margin-top:6px">C'est parti !</button>
+    <button class="btn ghost" id="rules" style="margin-top:10px">Comment on joue ?</button>
+    <div style="height:20px"></div>
+  `);
+  app.querySelectorAll("#pls input").forEach(inp=>inp.addEventListener("input",e=>{ S.players[+e.target.dataset.i]=e.target.value.trim(); }));
+  app.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ S.players.splice(+b.dataset.rm,1); home(); });
+  const add=$("#add"); if(add) add.onclick=()=>{ S.players.push(""); home(); setTimeout(()=>{const l=app.querySelectorAll("#pls input"); l[l.length-1].focus();},50); };
+  [["#time","drawTime",Number],["#turns","turns",Number],["#level","level",String]].forEach(([sel,key,cast])=>{
+    $(sel).querySelectorAll("button").forEach(b=>b.onclick=()=>{ S[key]=cast(b.dataset.v); $(sel).querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); });
+  });
+  $("#rules").onclick=rules;
+  $("#go").onclick=startGame;
+}
+
+function rules(){
+  const m=document.createElement("div"); m.className="modal";
+  m.innerHTML=`<div class="card pop-in">
+    <h2>Comment on joue</h2>
+    <ol class="steps">
+      <li>À chaque manche, <b>un joueur devine</b>. Il ne doit pas voir le mot.</li>
+      <li>Le téléphone passe de main en main : chaque autre joueur découvre le mot et le <b>dessine le plus vite possible</b>, puis appuie sur « J'ai fini ». Son temps est noté.</li>
+      <li>Le devineur reçoit le téléphone et voit les dessins <b>un par un, du plus rapide au plus lent</b>.</li>
+      <li>Il tape sa réponse. Raté ? On passe au dessin suivant.</li>
+    </ol>
+    <p><b>Points :</b> plus le devineur trouve tôt, plus il gagne (dessin 1 = max). Le dessinateur du dessin deviné gagne <b>2 points</b>.</p>
+    <p class="hint">Pas de lettres ni de chiffres dans les dessins, sinon c'est de la triche !</p>
+    <button class="btn" style="margin-top:10px">Compris</button></div>`;
+  m.querySelector("button").onclick=()=>m.remove(); m.onclick=e=>{ if(e.target===m) m.remove(); };
+  document.body.appendChild(m);
+}
+
+/* ============ Partie ============ */
+function startGame(){
+  S.players = S.players.map(p=>p.trim());
+  try{ localStorage.setItem("croquis-setup", JSON.stringify({players:S.players,turns:S.turns,drawTime:S.drawTime,level:S.level})); }catch(e){}
+  S.scores = S.players.map(()=>0);
+  S.round = 0; S.totalRounds = S.players.length * S.turns; S.history=[];
+  newRound();
+}
+
+function pickWord(){
+  const pool = S.level==="mix" ? WORDS.facile.concat(WORDS.difficile) : WORDS[S.level];
+  let left = pool.filter(w=>!S.used.has(w));
+  if(!left.length){ S.used.clear(); left = pool.slice(); }
+  const w = left[Math.floor(Math.random()*left.length)];
+  S.used.add(w); return w;
+}
+
+function newRound(){
+  stopTimer();
+  S.guesser = S.round % S.players.length;
+  S.word = pickWord();
+  S.queue = S.players.map((_,i)=>i).filter(i=>i!==S.guesser);
+  S.drawIdx = 0; S.drawings = []; S.revealIdx = 0; S.foundAt = -1;
+  view(`
+    <div class="topbar"><span class="pill">Manche ${S.round+1} / ${S.totalRounds}</span><button class="btn ghost small" id="quit">Quitter</button></div>
+    <div class="spacer"></div>
+    <div class="center">
+      <div class="big-emoji">🙈</div>
+      <h2><span style="color:${color(S.guesser)}">${esc(name(S.guesser))}</span> va deviner !</h2>
+      <p>${esc(name(S.guesser))}, ne regarde pas l'écran pendant que les autres dessinent.</p>
+      <p>Les dessinateurs vont passer à tour de rôle : ${S.queue.map(i=>`<b style="color:${color(i)}">${esc(name(i))}</b>`).join(", ")}.</p>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn pop" id="next">On commence</button>
+  `);
+  $("#quit").onclick=confirmQuit;
+  $("#next").onclick=handoff;
+}
+
+function confirmQuit(){
+  const m=document.createElement("div"); m.className="modal";
+  m.innerHTML=`<div class="card pop-in center"><h2>Quitter la partie ?</h2><p>Les scores seront perdus.</p>
+    <div class="row" style="margin-top:12px"><button class="btn ghost" id="no">Non</button><button class="btn pop" id="yes">Oui</button></div></div>`;
+  m.querySelector("#no").onclick=()=>m.remove();
+  m.querySelector("#yes").onclick=()=>{ m.remove(); home(); };
+  document.body.appendChild(m);
+}
+
+/* ---- Passage du téléphone à un dessinateur ---- */
+function handoff(){
+  stopTimer();
+  const p = S.queue[S.drawIdx];
+  view(`
+    <div class="topbar"><span class="pill">Dessinateur ${S.drawIdx+1} / ${S.queue.length}</span><span class="pill">${esc(name(S.guesser))} devine</span></div>
+    <div class="spacer"></div>
+    <div class="center">
+      <div class="big-emoji">✏️</div>
+      <h2>Passe le téléphone à<br><span style="color:${color(p)};font-size:34px">${esc(name(p))}</span></h2>
+      <p>Le mot s'affiche et le chrono démarre dès que tu appuies.<br>${S.drawTime} secondes max — mais plus tu finis vite, plus ton dessin passe tôt !</p>
+      <p class="hint">${esc(name(S.guesser))}, toujours les yeux fermés 😉</p>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn mint" id="go">Je suis prêt, montre le mot</button>
+  `);
+  $("#go").onclick=()=>drawScreen(p);
+}
+
+/* ---- Écran de dessin ---- */
+function drawScreen(p){
+  view(`
+    <div class="topbar">
+      <div><div class="hint">${esc(name(p))}, dessine :</div><div class="word" style="font-size:30px">${esc(S.word)}</div></div>
+      <div class="timer" id="t">${S.drawTime}s</div>
+    </div>
+    <div class="bar"><div id="b" style="width:100%"></div></div>
+    <div class="canvas-wrap" id="wrap"><canvas id="c"></canvas></div>
+    <div class="tools" id="tools">
+      ${["#2b2340","#ff5d73","#4f7cff","#2ec4b6","#ffc145","#8b5a2b"].map((c,i)=>`<button class="sw ${i==0?"on":""}" data-c="${c}" style="background:${c}" aria-label="couleur"></button>`).join("")}
+      <span style="flex:1"></span>
+      <button class="tool on" data-w="5">fin</button>
+      <button class="tool" data-w="14">épais</button>
+      <button class="tool" id="er">gomme</button>
+      <button class="tool" id="undo">↶</button>
+      <button class="tool" id="clr">🗑</button>
+    </div>
+    <button class="btn pop" id="done">J'ai fini !</button>
+  `);
+  const pad = makePad($("#c"), $("#wrap"));
+  app.querySelectorAll(".sw").forEach(b=>b.onclick=()=>{ pad.color=b.dataset.c; pad.erase=false; $("#er").classList.remove("on"); app.querySelectorAll(".sw").forEach(x=>x.classList.toggle("on",x===b)); });
+  app.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{ pad.width=+b.dataset.w; app.querySelectorAll("[data-w]").forEach(x=>x.classList.toggle("on",x===b)); });
+  $("#er").onclick=()=>{ pad.erase=!pad.erase; $("#er").classList.toggle("on",pad.erase); };
+  $("#undo").onclick=()=>pad.undo();
+  $("#clr").onclick=()=>pad.clear();
+
+  const start = performance.now();
+  let finished=false;
+  const finish=()=>{
+    if(finished) return; finished=true; stopTimer();
+    const secs = Math.min((performance.now()-start)/1000, S.drawTime);
+    S.drawings.push({player:p, time:secs, img:pad.toImage(), empty:pad.isEmpty()});
+    S.drawIdx++;
+    if(S.drawIdx < S.queue.length) handoff(); else toGuesser();
+  };
+  $("#done").onclick=finish;
+  timerId=setInterval(()=>{
+    const left = S.drawTime - (performance.now()-start)/1000;
+    const t=$("#t"), b=$("#b"); if(!t) return;
+    t.textContent = Math.max(0,Math.ceil(left))+"s";
+    t.classList.toggle("warn", left<=10);
+    b.style.width = Math.max(0,left/S.drawTime*100)+"%";
+    if(left<=0) finish();
+  },200);
+}
+
+function makePad(canvas, wrap){
+  const ctx = canvas.getContext("2d");
+  const pad = {color:"#2b2340", width:5, erase:false, strokes:[], cur:null};
+  let W=0,H=0;
+  function size(){
+    const r = wrap.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio||1, 2);
+    W=r.width; H=r.height;
+    canvas.width = Math.round(W*dpr); canvas.height = Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0); redraw();
+  }
+  function line(s){
+    ctx.strokeStyle = s.erase ? "#ffffff" : s.color;
+    ctx.lineWidth = s.erase ? s.width*3 : s.width;
+    ctx.lineCap="round"; ctx.lineJoin="round";
+    const pts=s.pts.map(([x,y])=>[x*W,y*H]);
+    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    if(pts.length===1){ ctx.lineTo(pts[0][0]+0.01,pts[0][1]); }
+    for(let i=1;i<pts.length-1;i++){ const mx=(pts[i][0]+pts[i+1][0])/2, my=(pts[i][1]+pts[i+1][1])/2; ctx.quadraticCurveTo(pts[i][0],pts[i][1],mx,my); }
+    if(pts.length>1) ctx.lineTo(pts[pts.length-1][0],pts[pts.length-1][1]);
+    ctx.stroke();
+  }
+  function redraw(){ ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H); pad.strokes.forEach(line); if(pad.cur) line(pad.cur); }
+  function pos(e){ const r=canvas.getBoundingClientRect(); return [(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]; }
+  canvas.addEventListener("pointerdown",e=>{ e.preventDefault(); canvas.setPointerCapture(e.pointerId); pad.cur={color:pad.color,width:pad.width,erase:pad.erase,pts:[pos(e)]}; redraw(); });
+  canvas.addEventListener("pointermove",e=>{ if(!pad.cur) return; e.preventDefault(); pad.cur.pts.push(pos(e)); redraw(); });
+  const up=()=>{ if(pad.cur){ pad.strokes.push(pad.cur); pad.cur=null; redraw(); } };
+  canvas.addEventListener("pointerup",up); canvas.addEventListener("pointercancel",up);
+  pad.undo=()=>{ pad.strokes.pop(); redraw(); };
+  pad.clear=()=>{ pad.strokes=[]; redraw(); };
+  pad.isEmpty=()=>!pad.strokes.some(s=>!s.erase);
+  pad.toImage=()=>{
+    // export en format 3:4 fixe pour un affichage homogène
+    const out=document.createElement("canvas"); out.width=600; out.height=800;
+    const o=out.getContext("2d"); o.fillStyle="#fff"; o.fillRect(0,0,600,800);
+    const sc=Math.min(600/W,800/H), ox=(600-W*sc)/2, oy=(800-H*sc)/2;
+    o.setTransform(sc,0,0,sc,ox,oy); o.drawImage(canvas,0,0,W,H);
+    return out.toDataURL("image/jpeg",0.8);
+  };
+  size();
+  window.addEventListener("resize", size, {once:false});
+  return pad;
+}
+
+/* ---- Devineur ---- */
+function toGuesser(){
+  stopTimer();
+  S.drawings.sort((a,b)=>a.time-b.time);
+  view(`
+    <div class="topbar"><span class="pill">Manche ${S.round+1} / ${S.totalRounds}</span></div>
+    <div class="spacer"></div>
+    <div class="center">
+      <div class="big-emoji">🕵️</div>
+      <h2>Tout le monde a fini !<br>Passe le téléphone à<br><span style="color:${color(S.guesser)};font-size:34px">${esc(name(S.guesser))}</span></h2>
+      <p>Tu vas voir les ${S.drawings.length} dessins un par un, du plus rapide au plus lent. Trouve le mot le plus tôt possible !</p>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn sky" id="go">Voir le premier dessin</button>
+  `);
+  $("#go").onclick=()=>{ S.revealIdx=0; guessScreen(); };
+}
+
+function norm(s){
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/œ/g,"oe")
+    .replace(/[^a-z0-9 ]/g," ").replace(/\b(le|la|les|l|un|une|des|du|de|d)\b/g," ")
+    .split(/\s+/).filter(Boolean).map(w=>w.length>3?w.replace(/(s|x)$/,""):w).join(" ");
+}
+function lev(a,b){
+  const m=a.length,n=b.length, d=Array.from({length:m+1},(_,i)=>[i].concat(Array(n).fill(0)));
+  for(let j=1;j<=n;j++) d[0][j]=j;
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++) d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+  return d[m][n];
+}
+function isRight(guess){
+  const g=norm(guess), w=norm(S.word);
+  if(!g) return false;
+  if(g===w) return true;
+  const tol = w.length>=8 ? 2 : (w.length>=4 ? 1 : 0);
+  return lev(g,w)<=tol;
+}
+
+function guessScreen(){
+  const k=S.drawings.length, d=S.drawings[S.revealIdx];
+  const pts = k - S.revealIdx;
+  view(`
+    <div class="topbar">
+      <span class="pill">Dessin ${S.revealIdx+1} / ${k}</span>
+      <span class="pill">⏱ ${d.time.toFixed(1)}s</span>
+      <span class="pill" style="background:var(--sun)">${pts} pt${pts>1?"s":""} en jeu</span>
+    </div>
+    <img class="drawing pop-in" src="${d.img}" alt="Dessin ${S.revealIdx+1}">
+    ${d.empty?`<p class="center hint">(ce joueur n'a rien dessiné…)</p>`:""}
+    <div style="height:12px"></div>
+    <div class="feedback" id="fb"></div>
+    <form id="f" class="row" style="margin:6px 0 10px">
+      <input type="text" id="g" placeholder="C'est quoi ?" autocomplete="off" autocapitalize="off" spellcheck="false" style="flex:3">
+      <button class="btn mint" style="flex:1">OK</button>
+    </form>
+    <div class="row">
+      <button class="btn ghost" id="pass">${S.revealIdx<k-1?"Dessin suivant →":"J'abandonne"}</button>
+      <button class="btn ghost small" id="ok" title="Si le groupe accepte ta réponse (synonyme…)">Le groupe valide ✓</button>
+    </div>
+    <p class="hint center" style="margin-top:8px">Tu peux aussi répondre à voix haute : si le groupe dit que c'est bon, appuie sur « Le groupe valide ».</p>
+  `);
+  const g=$("#g"); setTimeout(()=>g.focus(),100);
+  $("#f").onsubmit=e=>{
+    e.preventDefault();
+    if(!g.value.trim()) return;
+    if(isRight(g.value)){ found(); }
+    else{
+      const fb=$("#fb"); fb.className="feedback ko shake"; fb.textContent="« "+g.value.trim()+" » ? Non !";
+      g.value="";
+      setTimeout(()=>{ if(S.revealIdx<k-1){ S.revealIdx++; guessScreen(); } else { found(true); } },1100);
+    }
+  };
+  $("#pass").onclick=()=>{ if(S.revealIdx<k-1){ S.revealIdx++; guessScreen(); } else found(true); };
+  $("#ok").onclick=()=>found();
+}
+
+function found(fail){
+  const k=S.drawings.length;
+  let gPts=0, artist=null;
+  if(!fail){
+    S.foundAt=S.revealIdx; gPts = k - S.revealIdx; artist = S.drawings[S.revealIdx].player;
+    S.scores[S.guesser]+=gPts; S.scores[artist]+=2;
+  } else S.foundAt=-1;
+  S.history.push({word:S.word, guesser:S.guesser, foundAt:S.foundAt});
+  const gal = S.drawings.map((d,i)=>`
+    <figure class="${i===S.foundAt?"win":""}">
+      <img src="${d.img}" alt="">
+      <figcaption><b style="color:${color(d.player)}">${esc(name(d.player))}</b> · ${d.time.toFixed(1)}s${i===S.foundAt?" · ✓ +2":""}</figcaption>
+    </figure>`).join("");
+  const last = S.round+1>=S.totalRounds;
+  view(`
+    <div class="center pop-in">
+      <div class="big-emoji">${fail?"😅":"🎉"}</div>
+      <p style="margin:0">Le mot était</p>
+      <div class="word">${esc(S.word)}</div>
+      <h2 style="font-size:20px">${fail
+        ? `Personne n'a été trouvé cette fois !`
+        : `${esc(name(S.guesser))} trouve au dessin n°${S.foundAt+1} : <span style="color:var(--mint)">+${gPts}</span> · ${esc(name(artist))} <span style="color:var(--mint)">+2</span>`}</h2>
+    </div>
+    <div class="card"><div class="gallery">${gal}</div></div>
+    <div class="card">${scoreList()}</div>
+    <button class="btn pop" id="next">${last?"Voir le classement final 🏆":"Manche suivante →"}</button>
+    <div style="height:20px"></div>
+  `);
+  $("#next").onclick=()=>{ S.round++; if(last) finale(); else newRound(); };
+}
+
+function scoreList(){
+  return S.players.map((_,i)=>i).sort((a,b)=>S.scores[b]-S.scores[a])
+    .map((i,r)=>`<div class="score"><span><span class="dot" style="display:inline-block;vertical-align:middle;background:${color(i)};margin-right:8px"></span>${esc(name(i))}</span><b>${S.scores[i]}</b></div>`).join("");
+}
+
+function finale(){
+  const order=S.players.map((_,i)=>i).sort((a,b)=>S.scores[b]-S.scores[a]);
+  const top=S.scores[order[0]];
+  const winners=order.filter(i=>S.scores[i]===top);
+  const medals=["🥇","🥈","🥉"];
+  view(`
+    <div class="center pop-in">
+      <div class="big-emoji">🏆</div>
+      <h1 style="font-size:32px">${winners.length>1?"Égalité !":"Victoire de"}</h1>
+      <div class="word">${winners.map(i=>esc(name(i))).join(" & ")}</div>
+      <p>avec ${top} point${top>1?"s":""}</p>
+    </div>
+    <div class="card">
+      ${order.map((i,r)=>`<div class="score"><span>${medals[r]||"·"} <span style="color:${color(i)};font-weight:600">${esc(name(i))}</span></span><b>${S.scores[i]}</b></div>`).join("")}
+    </div>
+    <div class="card"><label class="lbl">Les mots de la partie</label>
+      <p>${S.history.map(h=>`${esc(h.word)} ${h.foundAt>=0?"✓":"✗"}`).join(" · ")}</p></div>
+    <button class="btn pop" id="again">Rejouer</button>
+    <button class="btn ghost" id="home" style="margin-top:10px">Changer les joueurs</button>
+    <div style="height:20px"></div>
+  `);
+  $("#again").onclick=startGame;
+  $("#home").onclick=home;
+}
+
+home();
+</script>
+</body>
+</html>
