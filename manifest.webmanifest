@@ -4,8 +4,8 @@
   "description": "L'appli de Dali & Rahma",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#150d2b",
-  "theme_color": "#150d2b",
+  "background_color": "#F8F5FF",
+  "theme_color": "#F8F5FF",
   "lang": "fr",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
