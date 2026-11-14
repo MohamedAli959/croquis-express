@@ -35,14 +35,33 @@
  *   nd:avatar:ID     photo de profil (affichée sur la carte) ; l'id actuel est dans nd:cfg « avatar_personne »
  *   nd:qa            hash   "AAAA-MM-JJ:personne" -> réponse à la question du jour
  *   nd:fail:IP       compteur d'essais de code ratés (15 min)
+ *
+ * MULTI-COUPLES : chaque couple a son « espace ». L'espace principal (« main », Dali & Rahma)
+ * garde ses clés historiques « nd:… » ; les autres espaces utilisent « nd:c:<id>:… ».
+ *   nd:couples       hash   id -> {names, members, start, created, disabled}   (registre des espaces)
+ *   nd:seen          hash   id -> dernière activité
+ *   nd:invites       hash   code -> invitation créée par l'admin (usage unique)
+ *   nd:admin         {salt, hash} du mot de passe administrateur
+ *   nd:vapid         clés des notifications (communes à tous les espaces)
  */
 const crypto = require("crypto");
 const { fail, db, hobj, send, readBody, sendError } = require("./_lib.js");
 let webpush = null;
 try { webpush = require("web-push"); } catch (e) { /* notifications désactivées si la bibliothèque manque */ }
 
-const PEOPLE = { dali: "Dali", rahma: "Rahma" };
-const START = "2025-09-15";
+const { AsyncLocalStorage } = require("async_hooks");
+// Contexte de la requête en cours : l'espace (couple) concerné
+const CTX = new AsyncLocalStorage();
+const ctx = () => CTX.getStore();
+const MAIN = { id: "main", prefix: "nd:", names: { dali: "Dali", rahma: "Rahma" }, members: ["dali", "rahma"], start: "2025-09-15" };
+// PEOPLE se comporte comme un objet { id: prénom } de l'espace en cours
+const PEOPLE = new Proxy({}, {
+  get: (_, k) => ctx().names[k],
+  has: (_, k) => k in ctx().names,
+  ownKeys: () => Reflect.ownKeys(ctx().names),
+  getOwnPropertyDescriptor: (_, k) => (k in ctx().names ? { enumerable: true, configurable: true, value: ctx().names[k] } : undefined),
+});
+const START = () => ctx().start;
 const MAX_PHOTO = 950000, MAX_THUMB = 200000, MAX_DOODLE = 400000, MAX_VOICE = 900000, SNAP_TTL = 86400; // tailles max en base64
 
 const QUESTIONS = [
@@ -109,13 +128,15 @@ const QUESTIONS = [
 ];
 
 /* ================= Outils ================= */
-const K = {
-  auth: "nd:auth", vapid: "nd:vapid", subs: "nd:subs", cfg: "nd:cfg", tz: "nd:tz",
-  notes: "nd:notes", moods: "nd:moods", dates: "nd:dates", mem: "nd:mem", mnotes: "nd:mnotes",
-  photo: id => `nd:photo:${id}`, thumb: id => `nd:thumb:${id}`,
-  doodle: id => `nd:doodle:${id}`, snaps: "nd:snaps", snap: id => `nd:snap:${id}`, snapt: id => `nd:snapt:${id}`, avatar: id => `nd:avatar:${id}`, voice: id => `nd:voice:${id}`, sched: "nd:sched", call: "nd:call", story: "nd:story", storyimg: id => `nd:storyimg:${id}`, songs: "nd:songs", sleep: "nd:sleep", act: "nd:act", letters: "nd:letters", jar: "nd:jar", thinks: "nd:thinks", lastthink: "nd:lastthink", loc: "nd:loc",
-  qa: "nd:qa", fail: ip => `nd:fail:${ip}`,
-};
+// Clés globales (communes à tous les espaces)
+const G = { vapid: "nd:vapid", couples: "nd:couples", seen: "nd:seen", invites: "nd:invites", admin: "nd:admin", fail: ip => `nd:fail:${ip}` };
+// Clés de l'espace en cours : préfixe « nd: » pour l'espace principal, « nd:c:<id>: » pour les autres
+const K = { vapid: G.vapid, fail: G.fail };
+for (const name of ["auth", "subs", "cfg", "tz", "notes", "moods", "dates", "mem", "mnotes", "snaps", "sched", "call", "story", "songs", "sleep", "act", "letters", "jar", "thinks", "lastthink", "loc", "qa"])
+  Object.defineProperty(K, name, { enumerable: true, get: () => ctx().prefix + name });
+for (const name of ["photo", "thumb", "doodle", "snap", "snapt", "avatar", "voice", "storyimg"])
+  K[name] = id => `${ctx().prefix}${name}:${id}`;
+K.lock = name => `${ctx().prefix}l:${name}`;
 const newId = () => Date.now().toString(36) + crypto.randomBytes(4).toString("hex");
 const txt = (s, max) => String(s || "").trim().replace(/\s+/g, " ").slice(0, max);
 const longTxt = (s, max) => String(s || "").trim().slice(0, max);
@@ -124,11 +145,11 @@ const hashCode = (salt, code) => crypto.createHash("sha256").update(salt + ":" +
 const photoToken = (authHash, id) => crypto.createHash("sha256").update("photo:" + authHash + ":" + id).digest("hex").slice(0, 24);
 const ipOf = req => String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "local").split(",")[0].trim().slice(0, 64);
 const parseHash = h => Object.values(hobj(h)).map(v => { try { return JSON.parse(v); } catch (e) { return null; } }).filter(Boolean);
-const otherOf = who => (who === "dali" ? "rahma" : "dali");
+const otherOf = who => ctx().members.find(m => m !== who) || ctx().members[0];
 const short = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
 
 function questionFor(day) {
-  const n = Math.floor((Date.parse(day) - Date.parse(START)) / 86400000);
+  const n = Math.floor((Date.parse(day) - Date.parse(START())) / 86400000);
   return QUESTIONS[((n % QUESTIONS.length) + QUESTIONS.length) % QUESTIONS.length];
 }
 
@@ -145,6 +166,7 @@ async function vapidKeys() {
 
 async function notify(req, to, payload) {
   if (!webpush) return { sent: 0 };
+  if (ctx().id !== "main" && payload.url) payload = { ...payload, url: payload.url + (payload.url.includes("?") ? "&" : "?") + "c=" + ctx().id };
   const [raw] = await db([["HGETALL", K.subs]]);
   const subs = Object.entries(hobj(raw)).filter(([k]) => k.startsWith(to + ":"));
   if (!subs.length) return { sent: 0 };
@@ -216,13 +238,97 @@ function callView(x, who) {
   return { ...rest, ...(x.to === who && x.state === "ringing" ? { offer } : {}), ...(x.from === who && x.state === "accepted" ? { answer } : {}) };
 }
 
+/* ================= Espaces (couples) ================= */
+async function getSpace(id) {
+  if (!id || id === "main") {
+    const [m] = await db([["HGET", G.couples, "main"]]);
+    const extra = m ? JSON.parse(m) : {};
+    return { ...MAIN, disabled: false, created: extra.created || null };
+  }
+  if (!/^[a-z0-9]{6,16}$/.test(id)) fail(404, "Espace introuvable.");
+  const [raw] = await db([["HGET", G.couples, id]]);
+  if (!raw) fail(404, "Espace introuvable.");
+  const m = JSON.parse(raw);
+  return { id, prefix: `nd:c:${id}:`, names: m.names, members: m.members, start: m.start, disabled: !!m.disabled, created: m.created };
+}
+async function allSpaces() {
+  const [raw] = await db([["HGETALL", G.couples]]);
+  const list = Object.entries(hobj(raw)).filter(([id]) => id !== "main").map(([id, v]) => ({ id, ...JSON.parse(v) }));
+  return [{ ...MAIN, created: null }, ...list.map(m => ({ id: m.id, prefix: `nd:c:${m.id}:`, names: m.names, members: m.members, start: m.start, disabled: !!m.disabled, created: m.created }))];
+}
+const inSpace = (space, fn) => CTX.run(space, fn);
+
+async function checkAdmin(req) {
+  const pass = String(req.headers["x-admin"] || "");
+  const [a, fails] = await db([["GET", G.admin], ["GET", G.fail("admin:" + ipOf(req))]]);
+  if (!a) fail(409, "ADMIN_SETUP");
+  if (Number(fails) >= 10) fail(429, "Trop d'essais ratés. Réessaie dans 15 minutes.");
+  const x = JSON.parse(a);
+  if (!crypto.timingSafeEqual(Buffer.from(hashCode(x.salt, pass)), Buffer.from(x.hash))) {
+    const [n] = await db([["INCR", G.fail("admin:" + ipOf(req))]]);
+    if (n === 1) await db([["EXPIRE", G.fail("admin:" + ipOf(req)), 900]]);
+    fail(401, "Mot de passe administrateur incorrect.");
+  }
+}
+async function deleteSpaceKeys(prefix) {
+  let cursor = "0", total = 0;
+  do {
+    const [res] = await db([["SCAN", cursor, "MATCH", prefix + "*", "COUNT", 500]]);
+    cursor = String(res[0]);
+    const keys = res[1] || [];
+    if (keys.length) { await db(keys.map(k => ["DEL", k])); total += keys.length; }
+  } while (cursor !== "0");
+  return total;
+}
+const genCode = n => Array.from(crypto.randomBytes(n), x => "abcdefghjkmnpqrstuvwxyz23456789"[x % 31]).join("");
+
+// Actions de l'administrateur (mot de passe dans l'en-tête X-Admin)
+const ADMIN = {
+  "admin.list": async () => {
+    const spaces = await allSpaces();
+    const [seen, inv] = await db([["HGETALL", G.seen], ["HGETALL", G.invites]]);
+    const sn = hobj(seen);
+    const stats = await db(spaces.flatMap(sp => [["HLEN", sp.prefix + "notes"], ["HLEN", sp.prefix + "mem"], ["EXISTS", sp.prefix + "auth"]]));
+    return {
+      couples: spaces.map((sp, i) => ({ id: sp.id, names: sp.names, members: sp.members, start: sp.start, created: sp.created, disabled: sp.disabled,
+        lastSeen: Number(sn[sp.id] || 0) || null, notes: stats[i * 3], memories: stats[i * 3 + 1], ready: !!stats[i * 3 + 2] })),
+      invites: Object.entries(hobj(inv)).map(([code, v]) => ({ code, ...JSON.parse(v) })).sort((a, b) => b.created - a.created),
+    };
+  },
+  "admin.invite": async (b) => {
+    const code = genCode(8);
+    await db([["HSET", G.invites, code, JSON.stringify({ created: Date.now(), note: txt(b.note, 60), used: null })]]);
+    return { code };
+  },
+  "admin.invite.del": async (b) => { await db([["HDEL", G.invites, String(b.code)]]); },
+  "admin.disable": async (b) => {
+    if (b.id === "main") fail(400, "L'espace principal ne peut pas être désactivé.");
+    const [raw] = await db([["HGET", G.couples, String(b.id)]]);
+    if (!raw) fail(404, "Espace introuvable.");
+    await db([["HSET", G.couples, String(b.id), JSON.stringify({ ...JSON.parse(raw), disabled: !!b.disabled })]]);
+  },
+  "admin.delete": async (b) => {
+    if (b.id === "main") fail(400, "L'espace principal ne peut pas être supprimé.");
+    const sp = await getSpace(String(b.id));
+    const n = await deleteSpaceKeys(sp.prefix);
+    await db([["HDEL", G.couples, sp.id], ["HDEL", G.seen, sp.id]]);
+    return { deleted: n };
+  },
+  "admin.password": async (b) => {
+    const pw = String(b.newPassword || "").trim();
+    if (pw.length < 8) fail(400, "8 caractères minimum.");
+    const salt = crypto.randomBytes(16).toString("hex");
+    await db([["SET", G.admin, JSON.stringify({ salt, hash: hashCode(salt, pw) })]]);
+  },
+};
+
 /* ================= Série de jours ================= */
 function streakOf(act, day) {
-  const both = dd => act[`dali:${dd}`] && act[`rahma:${dd}`];
+  const both = dd => ctx().members.every(m => act[`${m}:${dd}`]);
   const prev = dd => new Date(Date.parse(dd) - 86400000).toISOString().slice(0, 10);
   let dd = both(day) ? day : prev(day), n = 0;
   while (both(dd) && n < 5000) { n++; dd = prev(dd); }
-  return { days: n, today: !!both(day), meToday: !!act[`dali:${day}`] || !!act[`rahma:${day}`] };
+  return { days: n, today: !!both(day), meToday: ctx().members.some(m => act[`${m}:${day}`]) };
 }
 
 /* ================= Surprises programmées ================= */
@@ -232,7 +338,7 @@ async function deliverDue(req) {
   const due = parseHash(raw).filter(x => !x.delivered && x.at <= Date.now());
   let n = 0;
   for (const x of due) {
-    const [ok] = await db([["SET", `nd:l:sched:${x.id}`, "1", "EX", 3600, "NX"]]);
+    const [ok] = await db([["SET", K.lock(`sched:${x.id}`), "1", "EX", 3600, "NX"]]);
     if (ok !== "OK") continue;
     const note = { id: newId(), from: x.from, text: x.text, img: false, t: x.at, read: false, heart: false, surprise: true };
     await db([["HSET", K.notes, note.id, JSON.stringify(note)], ["HSET", K.sched, x.id, JSON.stringify({ ...x, delivered: Date.now() })]]);
@@ -281,7 +387,7 @@ function view(d, who, day) {
   const days = new Set(Object.keys(d.qa).map(k => k.split(":")[0]));
   for (const dd of [...days].sort().reverse()) {
     if (dd === day) continue;
-    if (d.qa[`${dd}:dali`] && d.qa[`${dd}:rahma`]) history.push({ day: dd, q: questionFor(dd), dali: d.qa[`${dd}:dali`], rahma: d.qa[`${dd}:rahma`] });
+    if (ctx().members.every(m => d.qa[`${dd}:${m}`])) history.push({ day: dd, q: questionFor(dd), answers: Object.fromEntries(ctx().members.map(m => [m, d.qa[`${dd}:${m}`]])) });
     if (history.length >= 30) break;
   }
   const memories = d.mem
@@ -303,7 +409,7 @@ function view(d, who, day) {
   const locs = {};
   for (const p in PEOPLE) if (d.loc[p]) { try { locs[p] = JSON.parse(d.loc[p]); } catch (e) {} }
   return {
-    people: PEOPLE, start: START,
+    people: { ...ctx().names }, members: ctx().members, start: START(), space: ctx().id,
     reunion: d.cfg.reunion || null,
     tz: d.tz,
     notes: d.notes.sort((a, b) => b.t - a.t).slice(0, 300).map(n => (n.img || n.voice ? { ...n, tk: photoToken(d.authHash, n.id) } : n)),
@@ -655,7 +761,7 @@ const ACTIONS = {
   "push.unsub": async (b) => {
     if (typeof b.endpoint !== "string") return;
     const fp = crypto.createHash("sha256").update(b.endpoint).digest("hex").slice(0, 16);
-    await db([["HDEL", K.subs, `dali:${fp}`], ["HDEL", K.subs, `rahma:${fp}`]]);
+    await db(ctx().members.map(m => ["HDEL", K.subs, `${m}:${fp}`]));
   },
   "push.test": async (b, d, req) => notify(req, b.who, { title: "🔔 Notifications activées", body: `Tu seras prévenu·e quand ${PEOPLE[otherOf(b.who)]} t'écrit 💕`, tag: "test", url: "/" }),
 };
@@ -667,6 +773,72 @@ const ACTIVE = new Set(["call.start", "call.answer", "note.add", "mood.set", "th
 module.exports = async function handler(req, res) {
   try {
     const q = Object.fromEntries(new URL(req.url, "http://localhost").searchParams);
+    const b0 = req.method === "POST" ? await readBody(req) : q;
+
+    // Tâche planifiée : livre les surprises de tous les espaces (ne renvoie aucune donnée)
+    if (req.method === "GET" && q.tick) {
+      let n = 0;
+      for (const sp of await allSpaces()) if (!sp.disabled) n += await inSpace(sp, () => deliverDue(req));
+      return send(res, 200, { delivered: n });
+    }
+
+    // Création d'un nouvel espace avec une invitation de l'admin
+    if (req.method === "POST" && b0.action === "space.create") return send(res, 200, await createSpace(b0));
+
+    // Administration (hors de tout espace)
+    if (req.method === "POST" && String(b0.action || "").startsWith("admin.")) {
+      if (b0.action === "admin.setup") return send(res, 200, await inSpace(MAIN, () => adminSetup(req, b0)));
+      await checkAdmin(req);
+      const fn = ADMIN[b0.action];
+      if (!fn) fail(400, "Action inconnue.");
+      return send(res, 200, { ok: true, ...((await fn(b0)) || {}) });
+    }
+
+    const space = await getSpace(String(b0.c || q.c || "main"));
+    if (space.disabled) fail(403, "Cet espace a été désactivé par l'administrateur.");
+    return await inSpace(space, () => handleSpace(req, res, q, b0));
+  } catch (e) {
+    if (e.status === 409 && (e.message === "SETUP" || e.message === "ADMIN_SETUP")) return send(res, 409, { error: e.message });
+    return sendError(res, e);
+  }
+};
+
+async function createSpace(b) {
+  const inv = String(b.invite || "").trim().toLowerCase();
+  const [raw] = await db([["HGET", G.invites, inv]]);
+  if (!raw) fail(403, "Invitation invalide ou déjà utilisée.");
+  const iv = JSON.parse(raw);
+  if (iv.used) fail(403, "Cette invitation a déjà été utilisée.");
+  const n1 = txt(b.name1, 20), n2 = txt(b.name2, 20), pw = String(b.code || "").trim();
+  if (!n1 || !n2) fail(400, "Indiquez vos deux prénoms.");
+  if (!isDay(b.start)) fail(400, "Indiquez la date du début de votre histoire.");
+  if (pw.length < 4) fail(400, "Le code secret doit faire au moins 4 caractères.");
+  const [lk] = await db([["SET", "nd:l:invite:" + inv, "1", "EX", 60, "NX"]]);
+  if (lk !== "OK") fail(409, "Création déjà en cours, réessaie.");
+  const id = genCode(10);
+  const meta = { names: { a: n1, b: n2 }, members: ["a", "b"], start: b.start, created: Date.now(), invite: inv, disabled: false };
+  const salt = crypto.randomBytes(16).toString("hex");
+  await db([
+    ["HSET", G.couples, id, JSON.stringify(meta)],
+    ["SET", `nd:c:${id}:auth`, JSON.stringify({ salt, hash: hashCode(salt, pw) })],
+    ["HSET", G.invites, inv, JSON.stringify({ ...iv, used: Date.now(), space: id, names: `${n1} & ${n2}` })],
+  ]);
+  return { ok: true, c: id, people: meta.names, members: meta.members };
+}
+
+// Premier mot de passe admin : seulement depuis l'espace principal (code secret du couple principal)
+async function adminSetup(req, b) {
+  await checkCode(req, req.headers["x-code"]);
+  const pw = String(b.newPassword || "").trim();
+  if (pw.length < 8) fail(400, "8 caractères minimum.");
+  const salt = crypto.randomBytes(16).toString("hex");
+  const [ok] = await db([["SET", G.admin, JSON.stringify({ salt, hash: hashCode(salt, pw) }), "NX"]]);
+  if (ok !== "OK") fail(409, "Le mot de passe administrateur existe déjà.");
+  return { ok: true };
+}
+
+async function handleSpace(req, res, q, b0) {
+  {
     const code = req.headers["x-code"];
 
     // Suivi rapide de l'appel en cours (seulement le code secret et l'appel : 3 lectures)
@@ -679,11 +851,11 @@ module.exports = async function handler(req, res) {
     // Tâche planifiée : livre les surprises arrivées à échéance (ne renvoie aucune donnée)
     if (req.method === "GET" && q.tick) return send(res, 200, { delivered: await deliverDue(req) });
 
-    // L'appli a-t-elle déjà un code secret ? (+ clé publique pour les notifications)
+    // L'espace a-t-il déjà un code secret ? (+ clé publique pour les notifications)
     if (req.method === "GET" && q.status) {
-      const [auth] = await db([["GET", K.auth]]);
+      const [auth, admin] = await db([["GET", K.auth], ["EXISTS", G.admin]]);
       const vapid = webpush && auth ? (await vapidKeys()).publicKey : null;
-      return send(res, 200, { configured: !!auth, people: PEOPLE, vapid });
+      return send(res, 200, { configured: !!auth, people: { ...ctx().names }, members: ctx().members, space: ctx().id, vapid, adminReady: !!admin });
     }
 
     // Photos : protégées par un jeton dérivé du code secret
@@ -708,12 +880,13 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    const b = req.method === "POST" ? await readBody(req) : q;
+    const b = b0;
     const who = b.who;
     const day = isDay(b.day) ? b.day : new Date().toISOString().slice(0, 10);
 
-    // Première ouverture : on choisit le code secret
+    // Première ouverture de l'espace principal : on choisit le code secret
     if (req.method === "POST" && b.action === "setup") {
+      if (ctx().id !== "main") fail(409, "Le code secret a déjà été choisi.");
       const c = String(b.code || "").trim();
       if (c.length < 4) fail(400, "Le code doit faire au moins 4 caractères.");
       const salt = crypto.randomBytes(16).toString("hex");
@@ -724,7 +897,8 @@ module.exports = async function handler(req, res) {
 
     if (req.method !== "GET" && req.method !== "POST") fail(405, "Méthode non autorisée.");
     let d = await loadAll(req, code);
-    if (!PEOPLE[who]) return send(res, 200, { ok: true, people: PEOPLE }); // code bon, personne pas encore choisie
+    if (!(who in ctx().names)) return send(res, 200, { ok: true, people: { ...ctx().names }, members: ctx().members }); // code bon, personne pas encore choisie
+    if (req.method === "GET") await db([["HSET", G.seen, ctx().id, Date.now()]]);
 
     // fuseau horaire du téléphone (pour afficher l'heure chez l'autre)
     const tz = txt(b.tz, 60);
@@ -740,10 +914,7 @@ module.exports = async function handler(req, res) {
       d = await loadAll(req, code);
     }
     return send(res, 200, { ...view(d, who, day), call: callView(await getCall(), who), pushed: extra.sent, drawn: extra.drawn, callId: extra.call });
-  } catch (e) {
-    if (e.status === 409 && e.message === "SETUP") return send(res, 409, { error: "SETUP" });
-    return sendError(res, e);
   }
-};
+}
 
 module.exports.questionFor = questionFor;

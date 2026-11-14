@@ -39,6 +39,14 @@ function memExec([cmd, k, ...a]) {
     case "HINCRBY": { const h = memHash(k); const n = Number(h.v.get(a[0]) || 0) + Number(a[1]); h.v.set(a[0], String(n)); return n; }
     case "HDEL": return e && e.v.delete(a[0]) ? 1 : 0;
     case "HGETALL": return e ? [...e.v].flat() : [];
+    case "HGET": return e && e.v.has(a[0]) ? e.v.get(a[0]) : null;
+    case "HLEN": return e ? e.v.size : 0;
+    case "EXISTS": return e ? 1 : 0;
+    case "SCAN": {
+      const i = a.indexOf("MATCH"), pat = i >= 0 ? a[i + 1] : "*";
+      const re = new RegExp("^" + pat.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$");
+      return ["0", [...mem.keys()].filter(x => re.test(x) && memEntry(x))];
+    }
   }
   throw new Error("Commande inconnue " + cmd);
 }

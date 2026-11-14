@@ -446,23 +446,30 @@ const SVG={
   film:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M7 4v16M17 4v16M2 9h5M17 9h5M2 15h5M17 15h5"/></svg>',
 };
 /* ================= État ================= */
-let CODE=LS.get("nd-code"), WHO=LS.get("nd-who"), D=null, PEOPLE={dali:"Dali",rahma:"Rahma"}, VAPID=null;
+// Espace (couple) courant : « main » = Dali & Rahma ; les autres couples ont leur propre identifiant
+const URLP=new URLSearchParams(location.search);
+let CID=(URLP.get("c")||LS.get("nd-cid")||"main").toLowerCase();
+if(!/^(main|[a-z0-9]{6,16})$/.test(CID)) CID="main";
+const lsk=k=>CID==="main"?k:k+"-"+CID;
+let CODE=LS.get(lsk("nd-code")), WHO=LS.get(lsk("nd-who")), D=null, PEOPLE={}, MEMBERS=[], VAPID=null, ADMIN_READY=false;
+const P1=()=>MEMBERS[0], P2=()=>MEMBERS[1];
 let tab=LS.get("nd-tab")||"home", pendingRender=false, openMem=null, CLOCK=0, memSub=LS.get("nd-memsub")||"photos";
 const sNow=()=>Date.now()+CLOCK;
 if(!["home","notes","memories","letters","question"].includes(tab)) tab="home";
-const other=()=>WHO==="dali"?"rahma":"dali";
+const other=()=>MEMBERS.find(m=>m!==WHO)||MEMBERS[0];
 const nm=p=>PEOPLE[p]||p;
 
 async function api(method, body){
   const opts={method, headers:{"X-Code":CODE||""}, cache:"no-store"};
   let url=API;
-  const base={who:WHO||"", day:ymd(new Date()), tz:MY_TZ};
+  const base={c:CID, who:WHO||"", day:ymd(new Date()), tz:MY_TZ};
   if(method==="GET") url+="?"+new URLSearchParams(base);
   else{ opts.headers["Content-Type"]="application/json"; opts.body=JSON.stringify({...base,...body}); }
   const r=await fetch(url,opts);
   let j=null; try{ j=await r.json(); }catch(e){}
   if(!r.ok){ const err=new Error((j&&j.error)||(r.status===413?"Photo trop lourde":"Erreur ("+r.status+")")); err.status=r.status; throw err; }
   if(j && j.now) CLOCK=j.now-Date.now();
+  if(j && j.people){ PEOPLE=j.people; if(j.members) MEMBERS=j.members; }
   return j;
 }
 async function refresh(force){
@@ -481,7 +488,7 @@ setInterval(()=>{ if(!document.hidden && D) refresh(); }, 15000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden && D){ refresh(); autoLocation(); } });
 document.addEventListener("focusout",()=>setTimeout(()=>{ if(pendingRender && !typing()) render(true); },150));
 const typing=()=>{ const a=document.activeElement; return a && /INPUT|TEXTAREA/.test(a.tagName) && a.value; };
-function logout(msg){ CODE=null; D=null; LS.del("nd-code"); loginScreen(); if(msg) toast(msg); }
+function logout(msg){ CODE=null; D=null; LS.del(lsk("nd-code")); loginScreen(); if(msg) toast(msg); }
 
 /* ================= Notifications push ================= */
 const PUSH_OK="serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
@@ -535,11 +542,123 @@ function installHelp(forPush){
     <div class="card"><b>Android (Chrome)</b><p>Menu <b>⋮</b> → <b>« Installer l'application »</b> ou « Ajouter à l'écran d'accueil »</p></div>`);
 }
 
+async function shareLink(url,text){
+  if(navigator.share){ try{ await navigator.share({title:"Nous Deux",text,url}); return; }catch(e){ if(e.name==="AbortError") return; } }
+  try{ await navigator.clipboard.writeText(url); toast("Lien copié 📋"); }catch(e){ prompt("Copie ce lien :",url); }
+}
+
+/* ================= Création d'un espace (nouveau couple, sur invitation) ================= */
+function createSpaceScreen(invite){
+  app.innerHTML=`<div class="solo fadein">
+    <div class="center"><div style="font-size:52px">💞</div><h1>Bienvenue</h1>
+      <p style="font-size:17px;margin-top:8px">Créez votre espace à deux : un endroit rien qu'à vous pour vous écrire, vous appeler et garder vos souvenirs.</p></div>
+    <form class="card stack" id="cs" style="margin-top:20px">
+      <div class="row"><input type="text" id="n1" class="grow" placeholder="Ton prénom" maxlength="20" autocomplete="given-name"><input type="text" id="n2" class="grow" placeholder="Son prénom" maxlength="20"></div>
+      <label class="faint" style="font-size:13px">Le début de votre histoire<input type="date" id="st" style="margin-top:6px"></label>
+      <input type="password" id="k1" placeholder="Votre code secret (4 caractères min.)" autocomplete="new-password">
+      <input type="password" id="k2" placeholder="Confirme le code" autocomplete="new-password">
+      <button class="btn">Créer notre espace</button>
+      <p class="faint" style="margin:0;font-size:13px">Le code secret protège votre espace : partagez-le uniquement entre vous deux.</p>
+    </form></div>`;
+  $("#cs").onsubmit=async e=>{
+    e.preventDefault();
+    const n1=$("#n1").value.trim(), n2=$("#n2").value.trim(), st=$("#st").value, k1=$("#k1").value.trim(), k2=$("#k2").value.trim();
+    if(!n1||!n2) return toast("Indiquez vos deux prénoms"); if(!st) return toast("Choisissez la date du début de votre histoire");
+    if(k1.length<4) return toast("Code secret : 4 caractères minimum"); if(k1!==k2) return toast("Les deux codes ne sont pas pareils");
+    const btn=e.target.querySelector("button"); btn.disabled=true;
+    try{
+      const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"space.create",invite,name1:n1,name2:n2,start:st,code:k1})});
+      const j=await r.json(); if(!r.ok) throw new Error(j.error||"Erreur");
+      CID=j.c; LS.set("nd-cid",CID); CODE=k1; LS.set(lsk("nd-code"),k1); PEOPLE=j.people; MEMBERS=j.members;
+      history.replaceState(null,"","/?c="+CID);
+      try{ const s2=await (await fetch(API+"?c="+CID+"&status=1",{cache:"no-store"})).json(); VAPID=s2.vapid; }catch(err){}
+      WHO=MEMBERS[0]; LS.set(lsk("nd-who"),WHO);
+      await start();
+      const m=sheet(`<h2>🎉 Votre espace est prêt</h2><p>Envoie ce lien à ${esc(n2)}, avec votre code secret, pour qu'elle/il vous rejoigne :</p>
+        <div class="card" style="margin:12px 0;word-break:break-all;font-weight:700;color:var(--rose2)">${esc(location.origin+"/?c="+CID)}</div>
+        <button class="btn" id="sh">Envoyer le lien à ${esc(n2)}</button>`);
+      m.querySelector("#sh").onclick=()=>shareLink(location.origin+"/?c="+CID,"Rejoins notre espace Nous Deux 💕");
+    }catch(err){ toast(err.message); btn.disabled=false; }
+  };
+}
+
+/* ================= Administration (espace principal) ================= */
+let ADMIN_PW=LS.get("nd-admin")||"";
+async function adminApi(action,data={}){
+  const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json","X-Admin":ADMIN_PW,"X-Code":CODE||""},body:JSON.stringify({action,c:"main",...data})});
+  let j=null; try{ j=await r.json(); }catch(e){}
+  if(!r.ok){ const err=new Error((j&&j.error)||"Erreur"); err.status=r.status; throw err; }
+  return j;
+}
+function adminScreen(){
+  const m=sheet(`<div id="adm"><p class="center">Chargement…</p></div>`);
+  const box=m.querySelector("#adm");
+  const askSetup=()=>{
+    box.innerHTML=`<h2>🛡️ Administration</h2><p>Choisis un mot de passe administrateur (8 caractères min.). Il est différent du code de votre couple : garde-le pour toi.</p>
+      <input type="password" id="ap1" placeholder="Mot de passe admin" style="margin-top:10px" autocomplete="new-password">
+      <input type="password" id="ap2" placeholder="Confirme le mot de passe" style="margin-top:10px" autocomplete="new-password">
+      <button class="btn" id="aps" style="margin-top:12px">Créer l'accès admin</button>`;
+    box.querySelector("#aps").onclick=async e=>{
+      const a=box.querySelector("#ap1").value.trim(), b=box.querySelector("#ap2").value.trim();
+      if(a.length<8) return toast("8 caractères minimum"); if(a!==b) return toast("Les deux mots de passe sont différents");
+      e.target.disabled=true;
+      try{ await adminApi("admin.setup",{newPassword:a}); ADMIN_PW=a; LS.set("nd-admin",a); ADMIN_READY=true; load(); }catch(err){ toast(err.message); e.target.disabled=false; }
+    };
+  };
+  const askLogin=msg=>{
+    box.innerHTML=`<h2>🛡️ Administration</h2>${msg?`<p style="color:var(--gold)">${esc(msg)}</p>`:""}
+      <input type="password" id="al" placeholder="Mot de passe admin" style="margin-top:10px" autocomplete="current-password">
+      <button class="btn" id="als" style="margin-top:12px">Entrer</button>`;
+    box.querySelector("#als").onclick=()=>{ ADMIN_PW=box.querySelector("#al").value.trim(); LS.set("nd-admin",ADMIN_PW); load(); };
+  };
+  const load=async()=>{
+    let j;
+    try{ j=await adminApi("admin.list"); }
+    catch(e){ if(e.message==="ADMIN_SETUP") return askSetup(); if(e.status===401){ LS.del("nd-admin"); return askLogin(e.message); } box.innerHTML=`<p>${esc(e.message)}</p>`; return; }
+    const dt=t=>t?new Date(t).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"}):"—";
+    const pend=j.invites.filter(i=>!i.used), used=j.invites.filter(i=>i.used);
+    box.innerHTML=`
+      <h2>🛡️ Administration</h2><p style="margin-top:4px">${j.couples.length} espace${j.couples.length>1?"s":""} · ${pend.length} invitation${pend.length>1?"s":""} en attente</p>
+      <div class="card" style="margin-top:14px"><div class="eyebrow">Inviter un couple</div>
+        <input type="text" id="inote" maxlength="60" placeholder="Pour qui ? (optionnel, ex : Sami & Lina)">
+        <button class="btn" id="inew" style="margin-top:10px">Créer une invitation</button>
+        ${pend.map(i=>`<div class="date"><div class="d"><b>${esc(i.note||"Invitation")}</b><div class="faint" style="font-size:12px">créée le ${dt(i.created)} · code ${esc(i.code)}</div></div>
+          <button class="link" data-ishare="${esc(i.code)}">Envoyer</button><button class="x" data-idel="${esc(i.code)}" aria-label="Annuler">×</button></div>`).join("")}
+      </div>
+      <div class="eyebrow" style="margin:18px 4px 8px">Les espaces</div>
+      ${j.couples.map(c=>`<div class="card" style="margin:10px 0">
+        <div class="row" style="align-items:flex-start"><div class="grow"><b style="font-size:17px">${esc(Object.values(c.names).join(" & "))}</b>
+          ${c.id==="main"?` <span class="pillnote" style="margin:0 0 0 6px;padding:2px 8px;font-size:11px">ton espace</span>`:""}
+          ${c.disabled?` <span class="pillnote" style="margin:0 0 0 6px;padding:2px 8px;font-size:11px;color:var(--gold)">désactivé</span>`:""}
+          <div class="faint" style="font-size:12px;margin-top:4px">${c.id==="main"?"espace principal":"créé le "+dt(c.created)} · dernière visite ${c.lastSeen?ago(c.lastSeen):"jamais"}<br>${c.notes||0} mots · ${c.memories||0} souvenirs · ensemble depuis le ${dt(Date.parse(c.start))}</div></div></div>
+        ${c.id==="main"?"":`<div class="row" style="margin-top:12px"><button class="btn small ghost" data-dis="${c.id}" data-v="${c.disabled?0:1}">${c.disabled?"Réactiver":"Désactiver"}</button>
+          <button class="btn small ghost" data-del="${c.id}" data-n="${esc(Object.values(c.names).join(" & "))}" style="color:#B3261E">Supprimer</button></div>`}
+      </div>`).join("")}
+      ${used.length?`<details style="margin-top:12px"><summary>Invitations utilisées (${used.length})</summary>${used.map(i=>`<div class="date"><div class="d"><b>${esc(i.names||i.note||i.code)}</b><div class="faint" style="font-size:12px">utilisée le ${dt(i.used)}</div></div></div>`).join("")}</details>`:""}
+      <div class="row" style="margin-top:16px"><button class="btn small ghost" id="apw">Changer le mot de passe admin</button><button class="btn small ghost" id="aout">Se déconnecter</button></div>
+      <p class="faint" style="font-size:12px;margin-top:12px">Tous les espaces partagent la même base Upstash et le même relais d'appels : surveille les quotas gratuits si les couples se multiplient.</p>`;
+    const share=code=>shareLink(location.origin+"/?invite="+code,"Créez votre espace à deux sur Nous Deux 💕");
+    box.querySelector("#inew").onclick=async e=>{ e.target.disabled=true; try{ const r=await adminApi("admin.invite",{note:box.querySelector("#inote").value}); await load(); share(r.code); }catch(err){ toast(err.message); e.target.disabled=false; } };
+    box.querySelectorAll("[data-ishare]").forEach(b=>b.onclick=()=>share(b.dataset.ishare));
+    box.querySelectorAll("[data-idel]").forEach(b=>b.onclick=async()=>{ if(confirm("Annuler cette invitation ?")){ await adminApi("admin.invite.del",{code:b.dataset.idel}).catch(e=>toast(e.message)); load(); } });
+    box.querySelectorAll("[data-dis]").forEach(b=>b.onclick=async()=>{ await adminApi("admin.disable",{id:b.dataset.dis,disabled:b.dataset.v==="1"}).catch(e=>toast(e.message)); load(); });
+    box.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{
+      const t=prompt(`Supprimer définitivement l'espace de ${b.dataset.n} et TOUTES ses données ?\nTape SUPPRIMER pour confirmer.`);
+      if(t!=="SUPPRIMER") return;
+      try{ const r=await adminApi("admin.delete",{id:b.dataset.del}); toast(`Espace supprimé (${r.deleted} éléments)`); }catch(e){ toast(e.message); }
+      load();
+    });
+    box.querySelector("#apw").onclick=async()=>{ const p=prompt("Nouveau mot de passe admin (8 caractères min.) :"); if(!p) return; try{ await adminApi("admin.password",{newPassword:p}); ADMIN_PW=p.trim(); LS.set("nd-admin",ADMIN_PW); toast("Mot de passe changé"); }catch(e){ toast(e.message); } };
+    box.querySelector("#aout").onclick=()=>{ LS.del("nd-admin"); ADMIN_PW=""; m.remove(); toast("Déconnecté de l'administration"); };
+  };
+  if(!ADMIN_PW && !ADMIN_READY) askSetup(); else if(!ADMIN_PW) askLogin(); else load();
+}
+
 /* ================= Première ouverture / connexion ================= */
 function setupScreen(){
   app.innerHTML=`<div class="solo fadein">
     <div class="center"><div style="font-size:56px">🌙</div>
-      <h1>${esc(PEOPLE.dali)} <em>&</em> ${esc(PEOPLE.rahma)}</h1>
+      <h1>${esc(PEOPLE[P1()])} <em>&</em> ${esc(PEOPLE[P2()])}</h1>
       <p style="font-size:18px;margin-top:10px">Votre petit coin à deux, même à distance.</p></div>
     <div class="card stack" style="margin-top:22px">
       <p style="margin:0">Choisissez votre <b style="color:var(--text)">code secret</b>. Il protège l'appli : gardez-le entre vous deux.</p>
@@ -553,10 +672,10 @@ function setupScreen(){
     if(a!==b) return toast("Les deux codes ne sont pas pareils");
     e.target.disabled=true;
     try{
-      const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"setup",code:a})});
+      const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"setup",code:a,c:CID})});
       const j=await r.json(); if(!r.ok) throw new Error(j.error);
-      CODE=a; LS.set("nd-code",a);
-      try{ const s=await (await fetch(API+"?status=1",{cache:"no-store"})).json(); VAPID=s.vapid; }catch(err){}
+      CODE=a; LS.set(lsk("nd-code"),a);
+      try{ const s=await (await fetch(API+"?c="+CID+"&status=1",{cache:"no-store"})).json(); VAPID=s.vapid; }catch(err){}
       whoScreen();
     }catch(err){ toast(err.message); e.target.disabled=false; }
   };
@@ -564,7 +683,7 @@ function setupScreen(){
 function loginScreen(){
   app.innerHTML=`<div class="solo fadein">
     <div class="center"><div style="font-size:52px">🔐</div>
-      <h1>Nous Deux</h1><p style="font-size:18px">${esc(PEOPLE.dali)} <em>&</em> ${esc(PEOPLE.rahma)}</p></div>
+      <h1>Nous Deux</h1><p style="font-size:18px">${esc(PEOPLE[P1()])} <em>&</em> ${esc(PEOPLE[P2()])}</p></div>
     <form class="card stack" id="f" style="margin-top:22px">
       <input type="password" id="c" placeholder="Votre code secret" autocomplete="current-password">
       <button class="btn">Entrer</button>
@@ -575,7 +694,7 @@ function loginScreen(){
     const btn=e.target.querySelector("button"); btn.disabled=true;
     CODE=$("#c").value.trim();
     try{
-      await api("GET"); LS.set("nd-code",CODE);
+      await api("GET"); LS.set(lsk("nd-code"),CODE); LS.set("nd-cid",CID);
       if(WHO && PEOPLE[WHO]) start(); else whoScreen();
     }catch(err){ CODE=null; toast(err.message); const f=$("#f"); f.classList.add("shake"); setTimeout(()=>f.classList.remove("shake"),400); btn.disabled=false; }
   };
@@ -587,7 +706,7 @@ function whoScreen(){
     <div class="stack" style="margin-top:20px">
       ${Object.entries(PEOPLE).map(([k,v],i)=>`<button class="btn ${i?"":"ghost"}" data-w="${k}" style="font-family:var(--serif);font-size:28px;padding:18px">${esc(v)}</button>`).join("")}
     </div></div>`;
-  $$("[data-w]").forEach(b=>b.onclick=()=>{ WHO=b.dataset.w; LS.set("nd-who",WHO); start(); });
+  $$("[data-w]").forEach(b=>b.onclick=()=>{ WHO=b.dataset.w; LS.set(lsk("nd-who"),WHO); LS.set("nd-cid",CID); start(); });
 }
 async function start(){
   app.innerHTML=`<p class="center" style="margin-top:44vh;font-size:30px">💕</p>`;
@@ -598,6 +717,8 @@ async function start(){
   if(p.get("tab")||p.get("snap")||p.get("movie")) openDeepLink(new URL(location.href));
 }
 function openDeepLink(u){
+  const uc=u.searchParams.get("c");
+  if(uc && uc!==CID){ LS.set("nd-cid",uc); location.href=u.pathname+u.search; return; }
   const t=u.searchParams.get("tab"), m=u.searchParams.get("m"), sn=u.searchParams.get("snap"), sb=u.searchParams.get("sub");
   if(sb){ memSub=sb; LS.set("nd-memsub",sb); }
   if(u.searchParams.get("movie")){ history.replaceState(null,"","/"); refresh(true).then(()=>checkMovie(true)); return; }
@@ -613,7 +734,7 @@ function openDeepLink(u){
 const TABS=[["home","Nous"],["notes","Mots"],["memories","Souvenirs"],["letters","Lettres"],["question","Question"]];
 function shell(){
   app.innerHTML=`
-    <header class="top"><div class="brand">${esc(nm("dali"))}<b>♥</b>${esc(nm("rahma"))}</div><div class="row" style="gap:8px"><button class="round" id="callA" aria-label="Appel audio">${ICONS.phone}</button><button class="round" id="callV" aria-label="Appel vidéo">${ICONS.video}</button><button class="round" id="menu" aria-label="Réglages">${ICONS.gear}</button></div></header>
+    <header class="top"><div class="brand">${esc(nm(P1()))}<b>♥</b>${esc(nm(P2()))}</div><div class="row" style="gap:8px"><button class="round" id="callA" aria-label="Appel audio">${ICONS.phone}</button><button class="round" id="callV" aria-label="Appel vidéo">${ICONS.video}</button><button class="round" id="menu" aria-label="Réglages">${ICONS.gear}</button></div></header>
     <main class="page" id="page"></main>
     <nav class="tabs">${TABS.map(([k,l])=>`<button data-tab="${k}">${ICONS[k]}${l}</button>`).join("")}</nav>`;
   $$("[data-tab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; LS.set("nd-tab",tab); render(true); window.scrollTo(0,0); });
@@ -667,7 +788,7 @@ function whenTxt(n){
   return "il y a "+plural(-k,"jour");
 }
 const monthsLabel=n=>n%12===0?plural(n/12,"an"):(n>=12?plural(Math.floor(n/12),"an")+" et "+(n%12)+" mois":n+" mois");
-const photoUrl=(m,size)=>`${API}?photo=${m.id}&k=${m.tk}&s=${size||"thumb"}`;
+const photoUrl=(m,size)=>`${API}?c=${CID}&photo=${m.id}&k=${m.tk}&s=${size||"thumb"}`;
 
 function homeTab(){
   const T=together(), s=parseDay(D.start), t=todayDate(), o=other();
@@ -722,7 +843,7 @@ function homeTab(){
       <h2 style="font-family:var(--sans);font-size:24px;font-weight:800">${hello} ${esc(nm(WHO))}</h2></div>
 
     <section class="herocard fadein">
-      <div class="hc-names">${esc(nm("dali"))} &amp; ${esc(nm("rahma"))}</div>
+      <div class="hc-names">${esc(nm(P1()))} &amp; ${esc(nm(P2()))}</div>
       <div class="hc-row"><span class="num">${T.days}</span><span class="hc-unit">jours ensemble</span></div>
       <div class="hc-ymd">${ymdTxt} · depuis le ${fmtDay(s)}</div>
       <div class="hc-pills">
@@ -755,7 +876,7 @@ function homeTab(){
     <div class="snapstrip">
       <button class="snapit" id="newsnap"><div class="ring"><div>${SVG.plus}</div></div><small>Nouveau</small></button>
       ${D.snaps.slice().sort((a,b)=>snapNew(b)-snapNew(a)||b.t-a.t).map(x=>`<button class="snapit ${snapNew(x)?"new":""}" data-snap="${x.id}">
-        <div class="ring"><img src="${API}?photo=${x.id}&k=${x.tk}&s=snapt" alt=""></div>
+        <div class="ring"><img src="${API}?c=${CID}&photo=${x.id}&k=${x.tk}&s=snapt" alt=""></div>
         <small>${x.from===WHO?"Toi":esc(nm(x.from))} · ${shortAgo(x.t)}</small></button>`).join("")}
       ${D.snaps.length?"":`<p class="faint" style="margin:18px 4px 0;font-size:13px">Envoie un instant de ta journée 📸</p>`}
     </div>
@@ -800,7 +921,7 @@ function homeTab(){
         <div class="when">${whenTxt(x.next)}</div>${x.fixed?"":`<button class="x" data-deldate="${x.id}" aria-label="Supprimer">×</button>`}</div>`).join("")}
       <details id="adddate" style="margin-top:10px"><summary>+ Ajouter une date</summary>
         <form class="stack" id="df" style="margin-top:12px">
-          <input type="text" id="dt" placeholder="Ex : Anniversaire de ${esc(nm("rahma"))} 🎂" maxlength="60">
+          <input type="text" id="dt" placeholder="Ex : Anniversaire de ${esc(nm(other()))} 🎂" maxlength="60">
           <input type="date" id="dd">
           <label class="row muted" style="font-size:14px"><input type="checkbox" id="dy" checked> Revient chaque année</label>
           <button class="btn small">Ajouter</button>
@@ -875,7 +996,7 @@ function notesTab(){
     const mine=n.from===WHO, d=new Date(n.t), dk=ymd(d);
     let sep=""; if(dk!==lastDay){ lastDay=dk; const k=daysBetween(parseDay(dk),todayDate()); sep=`<div class="daysep">${k===0?"Aujourd'hui":k===1?"Hier":DAYS[d.getDay()]+" "+fmtDay(d)}</div>`; }
     return sep+`<div class="bubble ${mine?"me":"them"}">
-      ${n.img?`<img class="doodle" src="${API}?photo=${n.id}&k=${n.tk}&s=doodle" alt="Dessin" loading="lazy">`:""}${n.voice?voiceHTML(n):""}${n.text?`<div class="txt">${esc(n.text)}</div>`:""}
+      ${n.img?`<img class="doodle" src="${API}?c=${CID}&photo=${n.id}&k=${n.tk}&s=doodle" alt="Dessin" loading="lazy">`:""}${n.voice?voiceHTML(n):""}${n.text?`<div class="txt">${esc(n.text)}</div>`:""}
       <div class="meta"><span>${n.surprise?"🎁 Surprise · ":""}${hhmm(n.t)} ${!mine&&!n.read?'<span class="new">nouveau</span>':""}${mine?(n.read?" · vu":""):""}</span>
         ${mine?`<button class="x" data-delnote="${n.id}" aria-label="Supprimer" style="font-size:16px">×</button>`:`<button class="hb ${n.heart?"on":""}" data-heart="${n.id}" aria-label="J'adore">❤️</button>`}</div>
       ${mine&&n.heart?`<span class="hs">❤️</span>`:""}
@@ -1072,7 +1193,7 @@ function viewSnap(id){
     <div class="stage">
       <div class="snapbar"><i style="width:${Math.round(left/86400000*100)}%"></i></div>
       <div class="snaptop"><div class="grow"><b>${mine?"Ton snap":esc(nm(x.from))}</b><div style="font-size:12px;opacity:.8">${ago(x.t)} · disparaît dans ${lh>1?lh+" h":"moins d'1 h"}</div></div><button class="closex" id="vx">×</button></div>
-      <img src="${API}?photo=${x.id}&k=${x.tk}&s=snap" alt="">
+      <img src="${API}?c=${CID}&photo=${x.id}&k=${x.tk}&s=snap" alt="">
       ${x.caption?`<div class="snapcap" style="top:${x.pos||62}%">${esc(x.caption)}</div>`:""}
     </div>
     <div class="snapbot">${mine
@@ -1113,7 +1234,7 @@ function km(a,b){
   const h=Math.sin(dLat/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLon/2)**2;
   return Math.round(2*R*Math.asin(Math.sqrt(h)));
 }
-const avatarUrl=p=>D.avatars&&D.avatars[p]?`${API}?photo=${D.avatars[p].id}&k=${D.avatars[p].tk}&s=avatar`:"";
+const avatarUrl=p=>D.avatars&&D.avatars[p]?`${API}?c=${CID}&photo=${D.avatars[p].id}&k=${D.avatars[p].tk}&s=avatar`:"";
 function geoCard(){
   const me=D.locs[WHO], them=D.locs[other()], o=esc(nm(other()));
   if(!me) return `<div class="card"><div class="eyebrow">🗺️ Où on est</div>
@@ -1327,7 +1448,7 @@ function doodleSheet(){
 let RELAY=false, CALL=null, ICE=[{urls:["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"]}];
 const seenCalls=new Set();
 async function callApi(){
-  const r=await fetch(`${API}?call=1&who=${WHO}`,{headers:{"X-Code":CODE||""},cache:"no-store"});
+  const r=await fetch(`${API}?c=${CID}&call=1&who=${WHO}`,{headers:{"X-Code":CODE||""},cache:"no-store"});
   const j=await r.json(); if(!r.ok) throw new Error(j.error||"Erreur");
   if(j.ice) ICE=j.ice; if(j.now) CLOCK=j.now-Date.now(); RELAY=!!j.relay;
   return j.call;
@@ -1561,7 +1682,7 @@ function storyPane(){
         <h3>${esc(x.title)}</h3>
         ${x.fixed?`<div class="ago">Le jour où tout a commencé ✨</div>`:k>=0?`<div class="ago">${k===0?"Le tout premier jour":"Jour "+k+" de notre histoire"}</div>`:""}
         ${x.text?`<p style="color:var(--text);margin:6px 0 0;white-space:pre-wrap">${esc(x.text)}</p>`:""}
-        ${x.photo?`<img src="${API}?photo=${x.id}&k=${x.tk}&s=story" alt="" loading="lazy">`:""}
+        ${x.photo?`<img src="${API}?c=${CID}&photo=${x.id}&k=${x.tk}&s=story" alt="" loading="lazy">`:""}
         ${x.fixed?"":`<button class="link" data-delstory="${x.id}" style="color:var(--faint);font-size:12px;margin-top:6px">Supprimer</button>`}
       </div>`; }).join("")}
       <div class="tl"><div class="dot">✨</div><div class="when">Aujourd'hui</div><h3>Et la suite s'écrit…</h3><div class="ago">${daysBetween(s0,todayDate())} jours ensemble</div></div>
@@ -1652,7 +1773,7 @@ async function playVoice(id,seek){
   try{
     if(!VP.urls[id]){
       // téléchargé en entier puis lu localement (plus fiable sur iPhone)
-      const r=await fetch(`${API}?photo=${id}&k=${n.tk}&s=voice`); if(!r.ok) throw new Error("Vocal introuvable");
+      const r=await fetch(`${API}?c=${CID}&photo=${id}&k=${n.tk}&s=voice`); if(!r.ok) throw new Error("Vocal introuvable");
       VP.urls[id]=URL.createObjectURL(await r.blob());
     }
     if(VP.id!==id) return;
@@ -1854,8 +1975,7 @@ function questionTab(){
       <p class="center faint" style="margin-top:10px">Vous découvrez la réponse de l'autre une fois la vôtre envoyée.</p>`}
     ${q.history.length?`<div class="card"><div class="eyebrow">Vos réponses précédentes</div>
       ${q.history.map(h=>`<details style="border-bottom:1px solid var(--stroke);padding:10px 0"><summary style="color:var(--text);font-weight:500">${fmtDay(parseDay(h.day))} · <i style="font-family:var(--serif);font-size:18px">${esc(h.q)}</i></summary>
-        <div class="answer"><div class="n">${esc(nm("dali"))}</div><div class="a">${esc(h.dali)}</div></div>
-        <div class="answer them"><div class="n">${esc(nm("rahma"))}</div><div class="a">${esc(h.rahma)}</div></div></details>`).join("")}</div>`:""}`;
+        ${MEMBERS.map((m,i)=>`<div class="answer ${i?"them":""}"><div class="n">${esc(nm(m))}</div><div class="a">${esc((h.answers||h)[m]||"")}</div></div>`).join("")}</details>`).join("")}</div>`:""}`;
   $("#qs").onclick=async e=>{ const t=$("#qa").value.trim(); if(!t) return toast("Écris ta réponse"); if(await act("qa.answer",{day:q.day,text:t},e.target)) hearts(5); };
 }
 
@@ -1877,6 +1997,10 @@ function settings(){
         ${D.locs[WHO]?`<div class="row"><button class="btn small ghost" id="locup">Mettre à jour</button><button class="btn small ghost" id="locoff">Ne plus partager</button></div>`:`<button class="btn" id="locon">Partager ma position</button>`}</div>
       <div class="card" style="margin:0"><div class="row" style="gap:14px"><div class="avatarbig" style="width:56px;height:56px;font-size:22px;${avatarUrl(WHO)?`background-image:url('${avatarUrl(WHO)}')`:""}">${avatarUrl(WHO)?"":esc(nm(WHO).slice(0,1))}</div>
         <div class="grow"><b>Ta photo sur la carte</b><div class="faint">${avatarUrl(WHO)?"Ajoutée ✓":"Pas encore de photo"}</div></div><button class="btn small ghost" id="avbtn">${avatarUrl(WHO)?"Changer":"Ajouter"}</button></div></div>
+      <div class="card" style="margin:0"><div class="eyebrow">💞 Notre espace</div>
+        <p style="margin:0 0 10px;color:var(--text)">Envoie ce lien à ${esc(nm(other()))} pour qu'elle/il vous rejoigne (avec votre code secret).</p>
+        <button class="btn ghost" id="sharespace">Partager le lien de notre espace</button></div>
+      ${CID==="main"?`<button class="btn ghost" id="adminbtn">🛡️ Administration</button>`:""}
       <button class="btn ghost" id="inst">📲 Installer l'appli sur l'écran d'accueil</button>
       <button class="btn ghost" id="out">Se déconnecter</button>
     </div>`);
@@ -1886,10 +2010,12 @@ function settings(){
   on("#ptest",async e=>{ const r=await act("push.test",{},e.currentTarget); toast(r&&r.pushed?"Notification envoyée 🔔":"Aucune notification envoyée"); });
   on("#pinst",()=>{ m.remove(); installHelp(true); });
   on("#inst",()=>{ m.remove(); installHelp(false); });
+  on("#sharespace",()=>shareLink(location.origin+(CID==="main"?"/":"/?c="+CID),"Rejoins notre espace Nous Deux 💕"));
+  on("#adminbtn",()=>{ m.remove(); adminScreen(); });
   m.querySelectorAll("#sw button").forEach(b=>b.onclick=async()=>{
     if(b.dataset.v===WHO) return;
     try{ const s=swReg && await swReg.pushManager.getSubscription(); if(s){ await act("push.unsub",{endpoint:s.endpoint}); await s.unsubscribe(); } }catch(e){}
-    WHO=b.dataset.v; LS.set("nd-who",WHO); m.remove(); await checkPush(); refresh(true);
+    WHO=b.dataset.v; LS.set(lsk("nd-who"),WHO); m.remove(); await checkPush(); refresh(true);
   });
   const prec=()=>m.querySelector("#sprec .on").dataset.v==="1";
   m.querySelectorAll("#sprec button").forEach(b=>b.onclick=()=>m.querySelectorAll("#sprec button").forEach(x=>x.classList.toggle("on",x===b)));
@@ -1904,9 +2030,12 @@ function settings(){
 (async function boot(){
   await Promise.race([initSW(), new Promise(r=>setTimeout(r,2500))]);
   try{
-    const r=await fetch(API+"?status=1",{cache:"no-store"}); const j=await r.json();
+    if(URLP.get("invite")) return createSpaceScreen(URLP.get("invite"));
+    const r=await fetch(API+"?c="+CID+"&status=1",{cache:"no-store"}); const j=await r.json();
+    if(r.status===404 && CID!=="main"){ LS.del("nd-cid"); CID="main"; history.replaceState(null,"","/"); location.reload(); return; }
     if(!r.ok) throw new Error(j.error||"Serveur indisponible");
-    PEOPLE=j.people||PEOPLE; VAPID=j.vapid||null;
+    PEOPLE=j.people||PEOPLE; MEMBERS=j.members||Object.keys(PEOPLE); VAPID=j.vapid||null; ADMIN_READY=!!j.adminReady;
+    if(CID!=="main") LS.set("nd-cid",CID);
     if(!j.configured) return setupScreen();
     if(!CODE) return loginScreen();
     if(!WHO || !PEOPLE[WHO]){

@@ -42,3 +42,14 @@ Fonctionnalités inspirées des applis pour couples à distance (Paired, Togethe
 
 Vercel + **Upstash for Redis** (onglet Storage du projet). Chaque push sur `main` est mis en ligne automatiquement.
 Les clés des notifications (VAPID) sont générées automatiquement au premier lancement et stockées dans Upstash.
+
+## Plusieurs couples (espaces)
+
+L'appli peut accueillir plusieurs couples, chacun dans son **espace** privé, avec ses propres données et son propre code secret.
+
+- **Espace principal** (Dali & Rahma) : il garde ses données historiques (clés `nd:…`), rien n'a été déplacé.
+- **Autres espaces** : données séparées sous `nd:c:<id>:…`, lien d'accès `https://<site>/?c=<id>`.
+- **Administration** (⚙️ Réglages de l'espace principal → 🛡️ Administration) : mot de passe admin distinct du code du couple ;
+  création d'**invitations** à usage unique (`/?invite=<code>`), liste des espaces (dernière visite, nombre de mots et de souvenirs),
+  désactivation, réactivation et suppression définitive d'un espace.
+- Un nouveau couple ne peut créer son espace qu'avec une invitation de l'admin.
