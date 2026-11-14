@@ -25,6 +25,7 @@
  *   nd:doodle:ID     dessin JPEG (base64) envoyé dans les petits mots
  *   nd:snaps         hash   id -> snap (photo du jour, visible 24 h)
  *   nd:snap:ID       photo du snap (expire après 24 h)   nd:snapt:ID  miniature
+ *   nd:voice:ID      message vocal (« type-mime\nbase64 ») envoyé dans les petits mots
  *   nd:avatar:ID     photo de profil (affichée sur la carte) ; l'id actuel est dans nd:cfg « avatar_personne »
  *   nd:qa            hash   "AAAA-MM-JJ:personne" -> réponse à la question du jour
  *   nd:fail:IP       compteur d'essais de code ratés (15 min)
@@ -36,7 +37,7 @@ try { webpush = require("web-push"); } catch (e) { /* notifications désactivée
 
 const PEOPLE = { dali: "Dali", rahma: "Rahma" };
 const START = "2025-09-15";
-const MAX_PHOTO = 950000, MAX_THUMB = 200000, MAX_DOODLE = 400000, SNAP_TTL = 86400; // tailles max en base64
+const MAX_PHOTO = 950000, MAX_THUMB = 200000, MAX_DOODLE = 400000, MAX_VOICE = 900000, SNAP_TTL = 86400; // tailles max en base64
 
 const QUESTIONS = [
   "Quel est ton souvenir préféré de nous deux ?",
@@ -106,7 +107,7 @@ const K = {
   auth: "nd:auth", vapid: "nd:vapid", subs: "nd:subs", cfg: "nd:cfg", tz: "nd:tz",
   notes: "nd:notes", moods: "nd:moods", dates: "nd:dates", mem: "nd:mem", mnotes: "nd:mnotes",
   photo: id => `nd:photo:${id}`, thumb: id => `nd:thumb:${id}`,
-  doodle: id => `nd:doodle:${id}`, snaps: "nd:snaps", snap: id => `nd:snap:${id}`, snapt: id => `nd:snapt:${id}`, avatar: id => `nd:avatar:${id}`, letters: "nd:letters", jar: "nd:jar", thinks: "nd:thinks", lastthink: "nd:lastthink", loc: "nd:loc",
+  doodle: id => `nd:doodle:${id}`, snaps: "nd:snaps", snap: id => `nd:snap:${id}`, snapt: id => `nd:snapt:${id}`, avatar: id => `nd:avatar:${id}`, voice: id => `nd:voice:${id}`, letters: "nd:letters", jar: "nd:jar", thinks: "nd:thinks", lastthink: "nd:lastthink", loc: "nd:loc",
   qa: "nd:qa", fail: ip => `nd:fail:${ip}`,
 };
 const newId = () => Date.now().toString(36) + crypto.randomBytes(4).toString("hex");
@@ -225,7 +226,7 @@ function view(d, who, day) {
     people: PEOPLE, start: START,
     reunion: d.cfg.reunion || null,
     tz: d.tz,
-    notes: d.notes.sort((a, b) => b.t - a.t).slice(0, 300).map(n => (n.img ? { ...n, tk: photoToken(d.authHash, n.id) } : n)),
+    notes: d.notes.sort((a, b) => b.t - a.t).slice(0, 300).map(n => (n.img || n.voice ? { ...n, tk: photoToken(d.authHash, n.id) } : n)),
     letters,
     jar: {
       mine: jarMine,                                                           // ce que j'ai écrit pour l'autre
@@ -255,10 +256,16 @@ const ACTIONS = {
     const text = longTxt(b.text, 1000);
     const img = b.doodle ? /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.doodle)) : null;
     if (b.doodle && (!img || img[1].length > MAX_DOODLE)) fail(400, "Dessin invalide.");
-    if (!text && !img) fail(400, "Écris un petit mot.");
-    const n = { id: newId(), from: b.who, text, img: !!img, t: Date.now(), read: false, heart: false };
+    const voice = b.voice ? /^data:(audio\/(?:mp4|webm|ogg|aac|mpeg|x-m4a))(?:;[^,;]*)*;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.voice)) : null;
+    if (b.voice && (!voice || voice[2].length > MAX_VOICE)) fail(400, voice ? "Vocal trop long (2 min max)." : "Vocal invalide.");
+    if (!text && !img && !voice) fail(400, "Écris un petit mot.");
+    const dur = voice ? Math.max(1, Math.min(600, Math.round(Number(b.dur) || 0))) : 0;
+    const n = { id: newId(), from: b.who, text, img: !!img, voice: !!voice, dur, t: Date.now(), read: false, heart: false };
     if (img) await db([["SET", K.doodle(n.id), img[1]]]);
+    if (voice) await db([["SET", K.voice(n.id), voice[1] + "\n" + voice[2]]]);
     await db([["HSET", K.notes, n.id, JSON.stringify(n)]]);
+    const mmss = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, "0")}`;
+    if (voice) return notify(req, otherOf(b.who), { title: `🎤 ${PEOPLE[b.who]} t'a envoyé un vocal (${mmss})`, body: text ? short(text, 160) : "Écoute-le vite 💕", tag: "note-" + n.id, url: "/?tab=notes" });
     return notify(req, otherOf(b.who), img
       ? { title: `🎨 ${PEOPLE[b.who]} t'a fait un dessin`, body: text ? short(text, 160) : "Viens voir 💕", tag: "note-" + n.id, url: "/?tab=notes" }
       : { title: `💌 ${PEOPLE[b.who]}`, body: short(text, 160), tag: "note-" + n.id, url: "/?tab=notes" });
@@ -275,7 +282,7 @@ const ACTIONS = {
   },
   "note.del": async (b, d) => {
     const n = d.notes.find(x => x.id === b.id);
-    if (n && n.from === b.who) await db([["HDEL", K.notes, n.id], ["DEL", K.doodle(n.id)]]);
+    if (n && n.from === b.who) await db([["HDEL", K.notes, n.id], ["DEL", K.doodle(n.id)], ["DEL", K.voice(n.id)]]);
   },
 
   "mood.set": async (b, d, req) => {
@@ -497,11 +504,18 @@ module.exports = async function handler(req, res) {
     if (req.method === "GET" && q.photo) {
       const id = String(q.photo);
       if (!/^[a-z0-9]{8,40}$/.test(id)) fail(400, "Photo invalide.");
-      const key = { full: K.photo(id), doodle: K.doodle(id), snap: K.snap(id), snapt: K.snapt(id), avatar: K.avatar(id) }[q.s] || K.thumb(id);
+      const key = { full: K.photo(id), doodle: K.doodle(id), snap: K.snap(id), snapt: K.snapt(id), avatar: K.avatar(id), voice: K.voice(id) }[q.s] || K.thumb(id);
       const [auth, data] = await db([["GET", K.auth], ["GET", key]]);
       if (!auth || q.k !== photoToken(JSON.parse(auth).hash, id)) fail(403, "Accès refusé.");
       if (!data) fail(404, "Photo introuvable.");
       res.statusCode = 200;
+      if (q.s === "voice") {
+        const i = data.indexOf("\n");
+        res.setHeader("Content-Type", data.slice(0, i));
+        res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+        res.end(Buffer.from(data.slice(i + 1), "base64"));
+        return;
+      }
       res.setHeader("Content-Type", "image/jpeg");
       res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
       res.end(Buffer.from(data, "base64"));

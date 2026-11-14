@@ -263,6 +263,23 @@
   .mapfull{position:fixed;inset:0;z-index:40;background:#000}
   .mapfull .mapbox{position:absolute;inset:0;height:auto;border-radius:0;margin:0;border:0}
 
+  /* vocaux */
+  .voice{display:flex;align-items:center;gap:10px;min-width:210px;margin-bottom:2px}
+  .vplay{width:42px;height:42px;border-radius:50%;border:0;flex:none;cursor:pointer;font-size:16px;color:#2a0f24;background:linear-gradient(135deg,var(--rose),var(--peach));display:grid;place-items:center}
+  .bubble.me .vplay{background:#fff}
+  .vwave{flex:1;height:28px;display:flex;align-items:center;gap:2px;cursor:pointer}
+  .vwave i{flex:1;border-radius:3px;background:rgba(255,255,255,.35);min-width:3px;max-width:5px}
+  .vwave i.on{background:#fff}
+  .vtime{font-size:12px;color:var(--muted);min-width:32px;text-align:right;font-variant-numeric:tabular-nums}
+  .rec{display:flex;flex-direction:column;align-items:center;gap:14px;padding:10px 0 4px}
+  .recdot{width:96px;height:96px;border-radius:50%;border:0;cursor:pointer;font-size:38px;color:#fff;display:grid;place-items:center;
+          background:radial-gradient(circle at 35% 30%,#ff8f8f,#e0304f);box-shadow:0 0 0 12px rgba(224,48,79,.15),0 10px 30px rgba(224,48,79,.5)}
+  .recdot.on{animation:recpulse 1.2s ease-in-out infinite}
+  @keyframes recpulse{50%{box-shadow:0 0 0 22px rgba(224,48,79,.08),0 10px 40px rgba(224,48,79,.7)}}
+  .rectime{font-family:var(--serif);font-size:44px;font-weight:700;font-variant-numeric:tabular-nums}
+  .level{width:100%;height:36px;display:flex;align-items:center;justify-content:center;gap:3px}
+  .level i{width:4px;border-radius:2px;background:var(--rose2);transition:height .08s}
+
   /* fenêtres, toasts */
   .modal{position:fixed;inset:0;background:rgba(8,4,18,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:20;animation:fade .2s}
   .modal .sheet{width:100%;max-width:560px;max-height:94dvh;overflow:auto;background:linear-gradient(170deg,#24123c,#35173f);border:1px solid var(--stroke);border-bottom:0;
@@ -645,7 +662,7 @@ function homeTab(){
 
     <div class="card">
       <div class="eyebrow">Dernier mot de ${esc(nm(o))} <button class="link" id="gonotes">Lui écrire →</button></div>
-      ${lastIn?`<div class="lastnote">${lastIn.img&&!lastIn.text?"🎨 Un dessin rien que pour toi":`“${esc(lastIn.text.length>220?lastIn.text.slice(0,219)+"…":lastIn.text)}”`}</div><div class="faint">${ago(lastIn.t)}</div>`
+      ${lastIn?`<div class="lastnote">${lastIn.voice&&!lastIn.text?"🎤 Un vocal rien que pour toi":lastIn.img&&!lastIn.text?"🎨 Un dessin rien que pour toi":`“${esc(lastIn.text.length>220?lastIn.text.slice(0,219)+"…":lastIn.text)}”`}</div><div class="faint">${ago(lastIn.t)}</div>`
         :`<p style="margin:0">Pas encore de petit mot. Écris-lui le premier 💌</p>`}
     </div>
 
@@ -726,7 +743,7 @@ function notesTab(){
     const mine=n.from===WHO, d=new Date(n.t), dk=ymd(d);
     let sep=""; if(dk!==lastDay){ lastDay=dk; const k=daysBetween(parseDay(dk),todayDate()); sep=`<div class="daysep">${k===0?"Aujourd'hui":k===1?"Hier":DAYS[d.getDay()]+" "+fmtDay(d)}</div>`; }
     return sep+`<div class="bubble ${mine?"me":"them"}">
-      ${n.img?`<img class="doodle" src="${API}?photo=${n.id}&k=${n.tk}&s=doodle" alt="Dessin" loading="lazy">`:""}${n.text?`<div class="txt">${esc(n.text)}</div>`:""}
+      ${n.img?`<img class="doodle" src="${API}?photo=${n.id}&k=${n.tk}&s=doodle" alt="Dessin" loading="lazy">`:""}${n.voice?voiceHTML(n):""}${n.text?`<div class="txt">${esc(n.text)}</div>`:""}
       <div class="meta"><span>${hhmm(n.t)} ${!mine&&!n.read?'<span class="new">nouveau</span>':""}${mine?(n.read?" · vu":""):""}</span>
         ${mine?`<button class="x" data-delnote="${n.id}" aria-label="Supprimer" style="font-size:16px">×</button>`:`<button class="hb ${n.heart?"on":""}" data-heart="${n.id}" aria-label="J'adore">❤️</button>`}</div>
       ${mine&&n.heart?`<span class="hs">❤️</span>`:""}
@@ -737,9 +754,12 @@ function notesTab(){
     ${D.notes.length?list:`<p class="center" style="margin:40px 0;font-family:var(--serif);font-style:italic;font-size:22px">Votre boîte à mots doux est vide… pour l'instant 💌</p>`}
     <div class="card" style="margin-top:18px">
       <textarea id="nt" maxlength="1000" placeholder="Écris-lui quelque chose de doux…"></textarea>
-      <div class="row" style="margin-top:12px"><button class="btn ghost" id="draw" style="width:auto;flex:none">🎨 Dessiner</button><button class="btn grow" id="send">Envoyer à ${esc(nm(other()))}</button></div>
+      <div class="row" style="margin-top:12px"><button class="btn ghost" id="mic" style="width:auto;flex:none" aria-label="Message vocal">🎤</button><button class="btn ghost" id="draw" style="width:auto;flex:none" aria-label="Dessiner">🎨</button><button class="btn grow" id="send">Envoyer à ${esc(nm(other()))}</button></div>
     </div>`;
   $("#draw").onclick=doodleSheet;
+  $("#mic").onclick=voiceSheet;
+  $$("[data-vplay]").forEach(b=>b.onclick=()=>playVoice(b.dataset.vplay));
+  $$("[data-vseek]").forEach(w=>w.onclick=e=>{ const r=w.getBoundingClientRect(); playVoice(w.dataset.vseek,(e.clientX-r.left)/r.width); });
   $("#send").onclick=async e=>{ const t=$("#nt").value.trim(); if(!t) return toast("Écris un petit mot"); const r=await act("note.add",{text:t},e.target); if(r){ hearts(8); toast(sentMsg(r)); window.scrollTo(0,document.body.scrollHeight); } };
   $$("[data-heart]").forEach(b=>b.onclick=e=>{ if(!b.classList.contains("on")) hearts(5,e.clientX,e.clientY); act("note.heart",{id:b.dataset.heart}); });
   $$("[data-delnote]").forEach(b=>b.onclick=()=>{ if(confirm("Supprimer ce mot ?")) act("note.del",{id:b.dataset.delnote}); });
@@ -1154,6 +1174,114 @@ function doodleSheet(){
     const o=out.getContext("2d"); o.drawImage(cv,0,0,640,640);
     const r=await act("note.add",{text:m.querySelector("#dtx").value,doodle:out.toDataURL("image/jpeg",.85)},e.target);
     if(r){ m.remove(); hearts(8); toast(sentMsg(r)); tab="notes"; LS.set("nd-tab",tab); render(true); }
+  };
+}
+
+/* ================= Messages vocaux ================= */
+const mmss=s=>Math.floor(s/60)+":"+pad(Math.floor(s%60));
+const BARS=28;
+function bars(id){ let h=0; for(const c of id) h=(h*31+c.charCodeAt(0))>>>0; return Array.from({length:BARS},(_,i)=>{ h=(h*1103515245+12345)>>>0; return 25+((h>>16)%75); }); }
+function voiceHTML(n){
+  const cur=VP.id===n.id, prog=cur&&VP.audio&&VP.audio.duration?VP.audio.currentTime/VP.audio.duration:0;
+  return `<div class="voice" data-voice="${n.id}">
+    <button class="vplay" data-vplay="${n.id}" aria-label="Écouter">${cur&&VP.playing?"❚❚":"▶"}</button>
+    <div class="vwave" data-vseek="${n.id}">${bars(n.id).map((h,i)=>`<i style="height:${Math.round(6+h*.22)}px" class="${i/BARS<prog?"on":""}"></i>`).join("")}</div>
+    <span class="vtime">${cur&&VP.audio?mmss(VP.playing||prog?VP.audio.currentTime:n.dur):mmss(n.dur||0)}</span></div>`;
+}
+// Lecteur unique, indépendant de l'affichage (la page se redessine régulièrement)
+const VP={id:null,audio:null,playing:false,urls:{}};
+function voiceUI(){
+  $$("[data-voice]").forEach(el=>{
+    const id=el.dataset.voice, cur=id===VP.id, a=VP.audio;
+    const prog=cur&&a&&a.duration&&isFinite(a.duration)?a.currentTime/a.duration:0;
+    el.querySelector(".vplay").textContent=cur&&VP.playing?"❚❚":"▶";
+    el.querySelectorAll(".vwave i").forEach((b,i)=>b.classList.toggle("on",cur&&i/BARS<prog));
+    const n=D.notes.find(x=>x.id===id);
+    el.querySelector(".vtime").textContent=mmss(cur&&a&&(VP.playing||a.currentTime)?a.currentTime:(n&&n.dur)||0);
+  });
+}
+async function playVoice(id,seek){
+  const n=D.notes.find(x=>x.id===id); if(!n) return;
+  if(VP.id===id && VP.audio && seek==null){ if(VP.playing) VP.audio.pause(); else VP.audio.play(); return; }
+  if(VP.audio){ VP.audio.pause(); }
+  VP.id=id; VP.playing=false;
+  try{
+    if(!VP.urls[id]){
+      // téléchargé en entier puis lu localement (plus fiable sur iPhone)
+      const r=await fetch(`${API}?photo=${id}&k=${n.tk}&s=voice`); if(!r.ok) throw new Error("Vocal introuvable");
+      VP.urls[id]=URL.createObjectURL(await r.blob());
+    }
+    if(VP.id!==id) return;
+    const a=new Audio(VP.urls[id]); VP.audio=a;
+    a.ontimeupdate=voiceUI;
+    a.onplay=()=>{ VP.playing=true; voiceUI(); };
+    a.onpause=()=>{ VP.playing=false; voiceUI(); };
+    a.onended=()=>{ VP.playing=false; a.currentTime=0; voiceUI(); };
+    if(seek!=null) a.addEventListener("loadedmetadata",()=>{ if(isFinite(a.duration)) a.currentTime=seek*a.duration; },{once:true});
+    await a.play();
+  }catch(e){ VP.playing=false; voiceUI(); toast(e.message||"Lecture impossible"); }
+}
+function pickMime(){
+  const c=["audio/mp4;codecs=mp4a.40.2","audio/mp4","audio/webm;codecs=opus","audio/webm","audio/ogg;codecs=opus"];
+  return c.find(t=>window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t))||"";
+}
+function voiceSheet(){
+  if(!navigator.mediaDevices || !window.MediaRecorder) return toast("L'enregistrement vocal n'est pas pris en charge sur ce navigateur");
+  const MAX=120;
+  let rec=null, stream=null, chunks=[], t0=0, timer=null, blob=null, dur=0, ctx=null, raf=null, preview=null;
+  const m=sheet(`<h2>Un vocal pour ${esc(nm(other()))}</h2>
+    <div class="rec">
+      <div class="rectime" id="vt">0:00</div>
+      <div class="level" id="vl">${Array.from({length:24},()=>`<i style="height:4px"></i>`).join("")}</div>
+      <button class="recdot" id="vr" aria-label="Enregistrer">🎤</button>
+      <p class="faint" id="vh" style="margin:0">Touche pour commencer · 2 min max</p>
+    </div>
+    <div id="vdone" style="display:none">
+      <div class="row" style="margin-top:10px"><button class="btn ghost" id="vre" style="width:auto;flex:none">↺ Recommencer</button><button class="btn ghost grow" id="vlisten">▶ Réécouter</button></div>
+      <input type="text" id="vtx" maxlength="200" placeholder="Un petit mot avec ? (optionnel)" style="margin-top:12px">
+      <button class="btn" id="vsend" style="margin-top:12px">Envoyer à ${esc(nm(other()))}</button>
+    </div>`);
+  const stopAll=()=>{ clearInterval(timer); cancelAnimationFrame(raf); if(stream) stream.getTracks().forEach(t=>t.stop()); if(ctx) ctx.close().catch(()=>{}); stream=null; ctx=null; };
+  const obs=new MutationObserver(()=>{ if(!document.body.contains(m)){ stopAll(); if(preview) preview.pause(); obs.disconnect(); } });
+  obs.observe(document.body,{childList:true});
+  const vr=m.querySelector("#vr"), vt=m.querySelector("#vt"), vh=m.querySelector("#vh");
+  const start=async()=>{
+    try{ stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}}); }
+    catch(e){ return toast("Autorise le micro dans les réglages du téléphone"); }
+    const mime=pickMime();
+    try{ rec=new MediaRecorder(stream,{...(mime?{mimeType:mime}:{}),audioBitsPerSecond:40000}); }catch(e){ rec=new MediaRecorder(stream); }
+    chunks=[]; rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+    rec.onstop=()=>{
+      blob=new Blob(chunks,{type:(rec.mimeType||mime||"audio/mp4").split(";")[0]}); stopAll();
+      vr.classList.remove("on"); vr.textContent="✓"; vr.disabled=true;
+      vh.textContent="Enregistré"; m.querySelector("#vdone").style.display="";
+    };
+    rec.start(250); t0=Date.now(); vr.classList.add("on"); vr.textContent="■"; vh.textContent="Touche pour arrêter";
+    timer=setInterval(()=>{ dur=(Date.now()-t0)/1000; vt.textContent=mmss(dur); if(dur>=MAX) stop(); },200);
+    // petit vu-mètre
+    try{
+      ctx=new (window.AudioContext||window.webkitAudioContext)(); const an=ctx.createAnalyser(); an.fftSize=64;
+      ctx.createMediaStreamSource(stream).connect(an); const data=new Uint8Array(an.frequencyBinCount), bs=m.querySelectorAll("#vl i");
+      const loop=()=>{ an.getByteFrequencyData(data); bs.forEach((b,i)=>b.style.height=Math.max(4,data[i%data.length]/255*36)+"px"); raf=requestAnimationFrame(loop); }; loop();
+    }catch(e){}
+  };
+  const stop=()=>{ if(rec && rec.state!=="inactive"){ dur=(Date.now()-t0)/1000; rec.stop(); } };
+  vr.onclick=()=>{ if(rec && rec.state==="recording") stop(); else if(!blob) start(); };
+  m.querySelector("#vre").onclick=()=>{ if(preview) preview.pause(); m.remove(); voiceSheet(); };
+  m.querySelector("#vlisten").onclick=e=>{
+    if(!blob) return;
+    if(preview && !preview.paused){ preview.pause(); e.target.textContent="▶ Réécouter"; return; }
+    preview=preview||new Audio(URL.createObjectURL(blob));
+    preview.onended=()=>{ e.target.textContent="▶ Réécouter"; };
+    preview.play().then(()=>{ e.target.textContent="❚❚ Pause"; }).catch(()=>toast("Lecture impossible"));
+  };
+  m.querySelector("#vsend").onclick=async e=>{
+    if(!blob) return;
+    if(blob.size>650000) return toast("Vocal trop long, recommence en plus court");
+    e.target.textContent="Envoi…";
+    const data=await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(blob); });
+    const r=await act("note.add",{text:m.querySelector("#vtx").value,voice:data,dur:Math.max(1,Math.round(dur))},e.target);
+    if(r){ if(preview) preview.pause(); m.remove(); hearts(8); toast(sentMsg(r)); }
   };
 }
 
