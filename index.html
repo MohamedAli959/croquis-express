@@ -299,9 +299,12 @@
 
   /* appels */
   .callfull{position:fixed;inset:0;z-index:60;background:radial-gradient(circle at 50% 30%,#3a1748,#0c0718 75%);display:flex;flex-direction:column;align-items:center;color:#fff;animation:fade .2s}
-  .callfull video.remote{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
-  .callfull video.local{position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px;width:28vw;max-width:140px;aspect-ratio:3/4;object-fit:cover;border-radius:16px;
-                        border:2px solid rgba(255,255,255,.4);background:#111;z-index:3;transform:scaleX(-1)}
+  .callfull video.bg{position:absolute;inset:-60px;width:calc(100% + 120px);height:calc(100% + 120px);object-fit:cover;filter:blur(28px) brightness(.55);transform:scale(1.05)}
+  .callfull video.main{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:transparent}
+  .callfull.fill video.main{object-fit:cover}
+  .callfull video.pip{position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px;width:26vw;max-width:130px;aspect-ratio:3/4;object-fit:cover;border-radius:18px;
+                      border:2px solid rgba(255,255,255,.55);background:#111;z-index:4;box-shadow:0 8px 24px rgba(0,0,0,.4);cursor:pointer;transition:aspect-ratio .2s}
+  .callfull video.audio{display:none}
   .callfull .who{position:relative;z-index:2;margin-top:calc(16vh + env(safe-area-inset-top));text-align:center}
   .callfull .who .av{width:132px;height:132px;border-radius:50%;margin:0 auto 18px;background:#2a1342 center/cover no-repeat;border:3px solid var(--rose);
                      display:grid;place-items:center;font-family:var(--serif);font-size:54px;font-weight:700;box-shadow:0 0 0 14px rgba(255,122,162,.12),0 0 0 30px rgba(255,122,162,.06)}
@@ -311,13 +314,13 @@
   .callfull.live.vid .who{margin-top:auto;margin-bottom:8px;text-shadow:0 2px 10px rgba(0,0,0,.7)}
   .callfull.live.vid .who .av{display:none}
   .callfull.live.vid .who h2{font-size:22px}
-  .callctl{position:relative;z-index:2;margin-top:auto;margin-bottom:calc(34px + env(safe-area-inset-bottom));display:flex;gap:18px;justify-content:center;align-items:center}
+  .callctl{position:relative;z-index:2;margin-top:auto;margin-bottom:calc(26px + env(safe-area-inset-bottom));display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap;padding:10px 14px;border-radius:999px;background:rgba(0,0,0,.28);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
   .callfull.live.vid .callctl{margin-top:0}
-  .callfull:not(.live) video.remote{display:none}
-  .cbtn{width:62px;height:62px;border-radius:50%;border:0;cursor:pointer;font-size:24px;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.16);backdrop-filter:blur(8px)}
+  .callfull:not(.live) video.main,.callfull:not(.live) video.bg{display:none}
+  .cbtn{width:54px;height:54px;border-radius:50%;border:0;cursor:pointer;font-size:24px;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.16);backdrop-filter:blur(8px)}
   .cbtn.off{background:#fff;color:#2a0f24}
-  .cbtn.red{background:#e5394f;width:70px;height:70px}
-  .cbtn.green{background:#2fbf71;width:70px;height:70px}
+  .cbtn.red{background:#e5394f;width:62px;height:62px}
+  .cbtn.green{background:#2fbf71;width:66px;height:66px}
   .cbtn svg{width:26px;height:26px}
   .cbtn.red svg{transform:rotate(135deg)}
 
@@ -1335,10 +1338,10 @@ const waitIce=pc=>new Promise(res=>{
   pc.addEventListener("icegatheringstatechange",()=>{ if(pc.iceGatheringState==="complete"){ clearTimeout(t); res(); } });
 });
 const getMedia=(video,facing="user")=>navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},
-  video:video?{facingMode:facing,width:{ideal:720},height:{ideal:1280}}:false});
+  video:video?{facingMode:facing,width:{ideal:960},aspectRatio:{ideal:4/3},frameRate:{ideal:30,max:30}}:false});
 function newPC(){
   const pc=new RTCPeerConnection({iceServers:ICE});
-  pc.ontrack=e=>{ if(!CALL) return; CALL.remote=e.streams[0]; const v=document.querySelector(".callfull video.remote"); if(v && v.srcObject!==CALL.remote){ v.srcObject=CALL.remote; v.play().catch(()=>{}); } };
+  pc.ontrack=e=>{ if(!CALL) return; CALL.remote=e.streams[0]; attachVideos(document.querySelector(".callfull")); };
   pc.onconnectionstatechange=()=>{
     if(!CALL || CALL.pc!==pc) return;
     if(pc.connectionState==="connected" && CALL.state!=="live"){ CALL.state="live"; CALL.since=Date.now(); if(navigator.vibrate) navigator.vibrate(60); callUI(); }
@@ -1418,7 +1421,7 @@ async function flipCamera(){
   const c=CALL; if(!c || !c.video || !c.pc) return;
   c.facing=c.facing==="user"?"environment":"user";
   try{
-    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:c.facing,width:{ideal:720},height:{ideal:1280}}});
+    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:c.facing,width:{ideal:960},aspectRatio:{ideal:4/3},frameRate:{ideal:30,max:30}}});
     const nt=s.getVideoTracks()[0], sender=c.pc.getSenders().find(x=>x.track&&x.track.kind==="video");
     if(sender) await sender.replaceTrack(nt);
     c.local.getVideoTracks().forEach(t=>{ t.stop(); c.local.removeTrack(t); }); c.local.addTrack(nt);
@@ -1426,26 +1429,44 @@ async function flipCamera(){
     callUI();
   }catch(e){ toast("Impossible de changer de caméra"); }
 }
+// Vue principale = l'autre (ou toi si inversé), vignette = l'inverse. Le son vient toujours de l'élément qui affiche l'autre.
+function attachVideos(box){
+  const c=CALL; if(!c || !box) return;
+  const setV=(v,stream,isLocal)=>{
+    if(!v) return;
+    if(v.srcObject!==stream) v.srcObject=stream||null;
+    v.muted=!!isLocal || v.classList.contains("bg");
+    v.style.transform=isLocal && c.facing==="user" && !v.classList.contains("bg")?"scaleX(-1)":"none";
+    if(stream) v.play().catch(()=>{});
+  };
+  const audio=box.querySelector("video.audio");
+  if(audio){ setV(audio,c.remote,false); return; }
+  const mainLocal=!!c.swap, main=box.querySelector("video.main"), bg=box.querySelector("video.bg"), pip=box.querySelector("video.pip");
+  setV(main,mainLocal?c.local:c.remote,mainLocal);
+  setV(bg,mainLocal?c.local:c.remote,true);
+  setV(pip,mainLocal?c.remote:c.local,!mainLocal);
+  // la vignette prend les proportions réelles de l'image qu'elle montre
+  if(pip){ const fit=()=>{ if(pip.videoWidth&&pip.videoHeight) pip.style.aspectRatio=pip.videoWidth+"/"+pip.videoHeight; };
+    pip.onloadedmetadata=fit; pip.onresize=fit; fit(); }
+}
 function callUI(){
   const c=CALL; if(!c) return;
   let box=document.querySelector(".callfull");
   if(!box){ box=document.createElement("div"); box.className="callfull"; document.body.appendChild(box); }
   const o=c.role==="caller"?other():(c.from||other()), url=avatarUrl(o);
   const live=c.state==="live";
-  box.className="callfull"+(c.state==="ringing"||c.state==="calling"?" ringing":"")+(live?" live":"")+(c.video?" vid":"");
+  box.className="callfull"+(c.state==="ringing"||c.state==="calling"?" ringing":"")+(live?" live":"")+(c.video?" vid":"")+(c.fill?" fill":"");
   const status={calling:`${c.video?"Appel vidéo":"Appel"}… ça sonne chez ${esc(nm(o))}`,ringing:`t'appelle${c.video?" en vidéo":""} 💕`,connecting:"Connexion…",live:""}[c.state];
   box.innerHTML=`
-    ${c.video?`<video class="remote" autoplay playsinline></video>${c.local?`<video class="local" autoplay playsinline muted></video>`:""}`:`<video class="remote" autoplay playsinline style="display:none"></video>`}
+    ${c.video?`<video class="bg" autoplay playsinline muted></video><video class="main" autoplay playsinline></video>${c.local?`<video class="pip" autoplay playsinline title="Toucher pour inverser"></video>`:""}`:`<video class="audio" autoplay playsinline></video>`}
     <div class="who"><div class="av" style="${url?`background-image:url('${url}')`:""}">${url?"":esc(nm(o).slice(0,1))}</div>
       <h2>${esc(nm(o))}</h2><p id="cstat">${status}</p></div>
     <div class="callctl">${c.state==="ringing"
       ?`<button class="cbtn red" id="cdecl" aria-label="Refuser">${ICONS.phone}</button><button class="cbtn green" id="cacc" aria-label="Accepter">${c.video?ICONS.video:ICONS.phone}</button>`
       :`<button class="cbtn ${c.muted?"off":""}" id="cmute" aria-label="Micro">${c.muted?"🔇":"🎤"}</button>
-        ${c.video?`<button class="cbtn ${c.camOff?"off":""}" id="ccam" aria-label="Caméra">${c.camOff?"🚫":"📷"}</button><button class="cbtn" id="cflip" aria-label="Changer de caméra">🔄</button>`:""}
+        ${c.video?`<button class="cbtn ${c.camOff?"off":""}" id="ccam" aria-label="Caméra">${c.camOff?"🚫":"📷"}</button><button class="cbtn" id="cflip" aria-label="Changer de caméra">🔄</button>${live?`<button class="cbtn" id="cfit" aria-label="${c.fill?"Voir l'image entière":"Remplir l'écran"}">${c.fill?"⤡":"⤢"}</button>`:""}`:""}
         <button class="cbtn red" id="chang" aria-label="Raccrocher">${ICONS.phone}</button>`}</div>`;
-  const rv=box.querySelector("video.remote"), lv=box.querySelector("video.local");
-  if(rv && c.remote){ rv.srcObject=c.remote; rv.play().catch(()=>{}); }
-  if(lv && c.local){ lv.srcObject=c.local; lv.style.transform=c.facing==="user"?"scaleX(-1)":"none"; lv.play().catch(()=>{}); }
+  attachVideos(box);
   const on=(id,f)=>{ const b=box.querySelector(id); if(b) b.onclick=f; };
   on("#cacc",acceptCall);
   on("#cdecl",()=>endCall(true));
@@ -1453,6 +1474,8 @@ function callUI(){
   on("#cmute",()=>{ c.muted=!c.muted; c.local&&c.local.getAudioTracks().forEach(t=>t.enabled=!c.muted); callUI(); });
   on("#ccam",()=>{ c.camOff=!c.camOff; c.local&&c.local.getVideoTracks().forEach(t=>t.enabled=!c.camOff); callUI(); });
   on("#cflip",flipCamera);
+  on("#cfit",()=>{ c.fill=!c.fill; callUI(); });
+  const pip=box.querySelector("video.pip"); if(pip) pip.onclick=()=>{ c.swap=!c.swap; attachVideos(box); };
   clearInterval(c.timer);
   if(c.state==="ringing" && navigator.vibrate){ navigator.vibrate([400,300,400]); c.timer=setInterval(()=>navigator.vibrate([400,300,400]),2000); }
   if(live){ const st=box.querySelector("#cstat"); const up=()=>{ if(st) st.textContent=mmss((Date.now()-c.since)/1000); }; up(); c.timer=setInterval(up,1000); }
