@@ -25,6 +25,7 @@
  *   nd:doodle:ID     dessin JPEG (base64) envoyé dans les petits mots
  *   nd:snaps         hash   id -> snap (photo du jour, visible 24 h)
  *   nd:snap:ID       photo du snap (expire après 24 h)   nd:snapt:ID  miniature
+ *   nd:avatar:ID     photo de profil (affichée sur la carte) ; l'id actuel est dans nd:cfg « avatar_personne »
  *   nd:qa            hash   "AAAA-MM-JJ:personne" -> réponse à la question du jour
  *   nd:fail:IP       compteur d'essais de code ratés (15 min)
  */
@@ -105,7 +106,7 @@ const K = {
   auth: "nd:auth", vapid: "nd:vapid", subs: "nd:subs", cfg: "nd:cfg", tz: "nd:tz",
   notes: "nd:notes", moods: "nd:moods", dates: "nd:dates", mem: "nd:mem", mnotes: "nd:mnotes",
   photo: id => `nd:photo:${id}`, thumb: id => `nd:thumb:${id}`,
-  doodle: id => `nd:doodle:${id}`, snaps: "nd:snaps", snap: id => `nd:snap:${id}`, snapt: id => `nd:snapt:${id}`, letters: "nd:letters", jar: "nd:jar", thinks: "nd:thinks", lastthink: "nd:lastthink", loc: "nd:loc",
+  doodle: id => `nd:doodle:${id}`, snaps: "nd:snaps", snap: id => `nd:snap:${id}`, snapt: id => `nd:snapt:${id}`, avatar: id => `nd:avatar:${id}`, letters: "nd:letters", jar: "nd:jar", thinks: "nd:thinks", lastthink: "nd:lastthink", loc: "nd:loc",
   qa: "nd:qa", fail: ip => `nd:fail:${ip}`,
 };
 const newId = () => Date.now().toString(36) + crypto.randomBytes(4).toString("hex");
@@ -237,6 +238,7 @@ function view(d, who, day) {
       total: Object.entries(d.thinks).reduce((a, [k, v]) => a + Number(v || 0), 0),
     },
     locs,
+    avatars: Object.fromEntries(Object.keys(PEOPLE).filter(p => d.cfg["avatar_" + p]).map(p => [p, { id: d.cfg["avatar_" + p], tk: photoToken(d.authHash, d.cfg["avatar_" + p]) }])),
     snaps: d.snaps.sort((a, b) => b.t - a.t).map(x => ({ ...x, tk: photoToken(d.authHash, x.id) })),
     moods,
     dates: d.dates.sort((a, b) => a.date.localeCompare(b.date)),
@@ -405,10 +407,27 @@ const ACTIONS = {
   },
 
   // Position approximative (arrondie à ~1 km) pour la distance et la météo
+  // Position partagée volontairement : précise (~1 m) ou approximative (~1 km)
   "loc.set": async (b) => {
-    const lat = Math.round(Number(b.lat) * 100) / 100, lon = Math.round(Number(b.lon) * 100) / 100;
-    if (!(Math.abs(lat) <= 90 && Math.abs(lon) <= 180)) fail(400, "Position invalide.");
-    await db([["HSET", K.loc, b.who, JSON.stringify({ lat, lon, city: txt(b.city, 60), t: Date.now() })]]);
+    const precise = b.precise !== false;
+    const f = precise ? 100000 : 100;
+    const lat = Math.round(Number(b.lat) * f) / f, lon = Math.round(Number(b.lon) * f) / f;
+    if (!(Math.abs(lat) <= 90 && Math.abs(lon) <= 180) || isNaN(lat) || isNaN(lon)) fail(400, "Position invalide.");
+    const acc = precise ? Math.min(100000, Math.max(0, Math.round(Number(b.acc) || 0))) : 1000;
+    await db([["HSET", K.loc, b.who, JSON.stringify({ lat, lon, precise, acc, city: txt(b.city, 60), t: Date.now() })]]);
+  },
+
+  // Photo de profil (pour la carte)
+  "avatar.set": async (b, d) => {
+    const img = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.photo || ""));
+    if (!img || img[1].length > MAX_THUMB) fail(400, "Photo invalide.");
+    const id = "av" + b.who + Date.now().toString(36);
+    const old = d.cfg["avatar_" + b.who];
+    await db([["SET", K.avatar(id), img[1]], ["HSET", K.cfg, "avatar_" + b.who, id], ...(old ? [["DEL", K.avatar(old)]] : [])]);
+  },
+  "avatar.del": async (b, d) => {
+    const old = d.cfg["avatar_" + b.who];
+    if (old) await db([["DEL", K.avatar(old)], ["HDEL", K.cfg, "avatar_" + b.who]]);
   },
   "loc.clear": async (b) => { await db([["HDEL", K.loc, b.who]]); },
 
@@ -478,7 +497,7 @@ module.exports = async function handler(req, res) {
     if (req.method === "GET" && q.photo) {
       const id = String(q.photo);
       if (!/^[a-z0-9]{8,40}$/.test(id)) fail(400, "Photo invalide.");
-      const key = { full: K.photo(id), doodle: K.doodle(id), snap: K.snap(id), snapt: K.snapt(id) }[q.s] || K.thumb(id);
+      const key = { full: K.photo(id), doodle: K.doodle(id), snap: K.snap(id), snapt: K.snapt(id), avatar: K.avatar(id) }[q.s] || K.thumb(id);
       const [auth, data] = await db([["GET", K.auth], ["GET", key]]);
       if (!auth || q.k !== photoToken(JSON.parse(auth).hash, id)) fail(403, "Accès refusé.");
       if (!data) fail(404, "Photo introuvable.");

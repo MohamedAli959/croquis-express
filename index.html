@@ -243,6 +243,25 @@
   .snapbot .btn{flex:1}
   .closex{width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:22px;cursor:pointer}
 
+  /* carte */
+  .mapbox{position:relative;height:300px;border-radius:20px;overflow:hidden;margin:4px 0 12px;background:#1b1530;border:1px solid var(--stroke)}
+  .mapbox .leaflet-container{background:#1b1530;font-family:var(--sans)}
+  .mapfs{position:absolute;top:10px;right:10px;z-index:500;width:36px;height:36px;border-radius:12px;border:1px solid var(--stroke);background:rgba(21,13,43,.8);color:#fff;font-size:18px;cursor:pointer}
+  .facepin{display:flex;flex-direction:column;align-items:center}
+  .facepin .ph{width:56px;height:56px;border-radius:50%;border:3px solid var(--rose);background:#2a1342 center/cover no-repeat;box-shadow:0 6px 18px rgba(0,0,0,.55);
+               display:grid;place-items:center;font-family:var(--serif);font-weight:700;font-size:24px;color:#fff;position:relative}
+  .facepin.me .ph{border-color:var(--gold)}
+  .facepin .ph::after{content:"";position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);border:7px solid transparent;border-top-color:var(--rose)}
+  .facepin.me .ph::after{border-top-color:var(--gold)}
+  .facepin .nm{margin-top:10px;background:rgba(21,13,43,.85);color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+  .leaflet-control-attribution{background:rgba(21,13,43,.7)!important;color:var(--faint)!important;font-size:9px!important}
+  .leaflet-control-attribution a{color:var(--muted)!important}
+  .leaflet-bar a{background:rgba(21,13,43,.85)!important;color:#fff!important;border-color:var(--stroke)!important}
+  .distlabel{background:rgba(21,13,43,.9);color:var(--gold);border:1px solid rgba(245,208,138,.5);border-radius:999px;padding:3px 10px;font-weight:700;font-size:12px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block}
+  .avatarbig{width:84px;height:84px;border-radius:50%;background:#2a1342 center/cover no-repeat;border:3px solid var(--rose);display:grid;place-items:center;font-family:var(--serif);font-size:34px;font-weight:700;flex:none}
+  .mapfull{position:fixed;inset:0;z-index:40;background:#000}
+  .mapfull .mapbox{position:absolute;inset:0;height:auto;border-radius:0;margin:0;border:0}
+
   /* fenêtres, toasts */
   .modal{position:fixed;inset:0;background:rgba(8,4,18,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:20;animation:fade .2s}
   .modal .sheet{width:100%;max-width:560px;max-height:94dvh;overflow:auto;background:linear-gradient(170deg,#24123c,#35173f);border:1px solid var(--stroke);border-bottom:0;
@@ -352,7 +371,7 @@ async function act(action, data, btn){
   finally{ if(btn && btn.isConnected){ btn.disabled=false; btn.innerHTML=label; } }
 }
 setInterval(()=>{ if(!document.hidden && D) refresh(); }, 15000);
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden && D) refresh(); });
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && D){ refresh(); autoLocation(); } });
 document.addEventListener("focusout",()=>setTimeout(()=>{ if(pendingRender && !typing()) render(true); },150));
 const typing=()=>{ const a=document.activeElement; return a && /INPUT|TEXTAREA/.test(a.tagName) && a.value; };
 function logout(msg){ CODE=null; D=null; LS.del("nd-code"); loginScreen(); if(msg) toast(msg); }
@@ -466,7 +485,7 @@ function whoScreen(){
 async function start(){
   app.innerHTML=`<p class="center" style="margin-top:44vh;font-size:30px">💕</p>`;
   try{ D=await api("GET"); }catch(e){ if(e.status===401) return logout(e.message); toast(e.message); return; }
-  shell(); await checkPush(); render(true);
+  shell(); await checkPush(); render(true); autoLocation();
   const p=new URLSearchParams(location.search);
   if(p.get("tab")||p.get("snap")) openDeepLink(new URL(location.href));
 }
@@ -651,7 +670,11 @@ function homeTab(){
   $("#think").onclick=e=>sendThink(e);
   $("#newsnap").onclick=newSnap;
   $$("[data-snap]").forEach(b=>b.onclick=()=>viewSnap(b.dataset.snap));
-  if($("#geoshare")) $("#geoshare").onclick=e=>shareLocation(e.currentTarget);
+  if($("#geoshare")) $("#geoshare").onclick=e=>shareLocation(e.currentTarget,{precise:$("#geoprec .on").dataset.v==="1"});
+  $$("#geoprec button").forEach(b=>b.onclick=()=>$$("#geoprec button").forEach(x=>x.classList.toggle("on",x===b)));
+  if($("#locnow")) $("#locnow").onclick=e=>shareLocation(e.currentTarget);
+  if($("#addface")) $("#addface").onclick=avatarSheet;
+  mountMap();
   fillWeather();
   $("#moodbtn").onclick=moodPicker;
   if($("#pushon")) $("#pushon").onclick=e=>enablePush(e.currentTarget);
@@ -923,20 +946,142 @@ function km(a,b){
   const h=Math.sin(dLat/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLon/2)**2;
   return Math.round(2*R*Math.asin(Math.sqrt(h)));
 }
+const avatarUrl=p=>D.avatars&&D.avatars[p]?`${API}?photo=${D.avatars[p].id}&k=${D.avatars[p].tk}&s=avatar`:"";
 function geoCard(){
   const me=D.locs[WHO], them=D.locs[other()], o=esc(nm(other()));
-  if(!me) return `<div class="card"><div class="eyebrow">🌍 La distance entre nous</div>
-    <p style="margin:0 0 12px;color:var(--text)">Partage ta position approximative pour voir combien de kilomètres vous séparent et la météo chez ${o}.</p>
-    <button class="btn ghost" id="geoshare">Partager ma position</button></div>`;
-  if(!them) return `<div class="card"><div class="eyebrow">🌍 La distance entre nous</div><p style="margin:0">${o} n'a pas encore partagé sa position.</p></div>`;
-  const d=km(me,them);
-  return `<div class="card"><div class="eyebrow">🌍 La distance entre nous</div>
-    <div class="geo">
+  if(!me) return `<div class="card"><div class="eyebrow">🗺️ Où on est</div>
+    <p style="margin:0 0 12px;color:var(--text)">Partage ta position pour apparaître sur votre carte, avec ton visage, et voir où est ${o} en ce moment.</p>
+    <div class="seg" id="geoprec" style="margin-bottom:10px"><button data-v="1" class="on">📍 Précise</button><button data-v="0">≈ Ville (~1 km)</button></div>
+    <button class="btn" id="geoshare">Partager ma position</button>
+    <p class="faint" style="margin:10px 0 0">Seul·e ${o} la voit. Tu peux arrêter à tout moment dans ⚙️ Réglages.</p></div>`;
+  const d=them?km(me,them):null;
+  const upd=p=>D.locs[p]?`${p===WHO?"Toi":esc(nm(p))} · mis à jour ${ago(D.locs[p].t)}${D.locs[p].precise===false?" (≈ 1 km)":""}`:"";
+  return `<div class="card"><div class="eyebrow">🗺️ Où on est <button class="link" id="locnow">↻ Ma position</button></div>
+    <div id="mapslot"></div>
+    ${them?`<div class="geo">
       <div class="box"><div class="big">${d.toLocaleString("fr-FR")}</div><div class="faint">km nous séparent${them.city?`<br>${o} est à ${esc(them.city)}`:""}</div></div>
       <div class="box" id="wx"><div class="big">…</div><div class="faint">météo chez ${o}</div></div>
     </div>
-    <p class="center" style="margin:12px 0 0;font-family:var(--serif);font-style:italic;font-size:19px;color:var(--text)">${d<5?"Enfin ensemble 🥹":"…mais jamais loin de mon cœur."}</p></div>`;
+    <p class="center" style="margin:12px 0 4px;font-family:var(--serif);font-style:italic;font-size:19px;color:var(--text)">${d<1?"Enfin ensemble 🥹":"…mais jamais loin de mon cœur."}</p>`
+    :`<p style="margin:0">${o} n'a pas encore partagé sa position.</p>`}
+    <p class="faint" style="margin:6px 0 0">${[upd(WHO),upd(other())].filter(Boolean).join(" · ")}</p>
+    ${D.avatars&&D.avatars[WHO]?"":`<button class="btn ghost small" id="addface" style="margin-top:10px">🙂 Ajouter ma photo sur la carte</button>`}</div>`;
 }
+
+/* ---- Carte (Leaflet + fond de carte CARTO / OpenStreetMap) ---- */
+let leafletP=null, mapEl=null, mapObj=null, mapLayers=null, mapKey="";
+function loadLeaflet(){
+  if(window.L) return Promise.resolve();
+  if(leafletP) return leafletP;
+  leafletP=new Promise((res,rej)=>{
+    const css=document.createElement("link"); css.rel="stylesheet"; css.href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"; document.head.appendChild(css);
+    const js=document.createElement("script"); js.src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"; js.onload=res; js.onerror=()=>{ leafletP=null; rej(new Error("Carte indisponible")); };
+    document.head.appendChild(js);
+  });
+  return leafletP;
+}
+function facePin(p){
+  const url=avatarUrl(p);
+  return L.divIcon({className:"",iconSize:[60,84],iconAnchor:[30,66],
+    html:`<div class="facepin ${p===WHO?"me":""}"><div class="ph" style="${url?`background-image:url('${url}')`:""}">${url?"":esc(nm(p).slice(0,1))}</div><div class="nm">${p===WHO?"Toi":esc(nm(p))}</div></div>`});
+}
+function drawMap(container,obj,layers,fit){
+  layers.clearLayers();
+  const pts=[];
+  for(const p of [WHO,other()]){
+    const l=D.locs[p]; if(!l) continue;
+    const ll=[l.lat,l.lon]; pts.push(ll);
+    if(l.precise!==false && l.acc>30) L.circle(ll,{radius:l.acc,color:p===WHO?"#f5d08a":"#ff7aa2",weight:1,fillOpacity:.08}).addTo(layers);
+    L.marker(ll,{icon:facePin(p),zIndexOffset:p===WHO?0:100}).addTo(layers);
+  }
+  if(pts.length===2){
+    L.polyline(pts,{color:"#ff9fbd",weight:2,dashArray:"6 8",opacity:.9}).addTo(layers);
+    const mid=[(pts[0][0]+pts[1][0])/2,(pts[0][1]+pts[1][1])/2];
+    const d=km(D.locs[WHO],D.locs[other()]);
+    if(d>=1) L.marker(mid,{interactive:false,icon:L.divIcon({className:"",iconSize:[0,0],html:`<span class="distlabel">💗 ${d.toLocaleString("fr-FR")} km</span>`})}).addTo(layers);
+  }
+  if(fit){
+    if(pts.length===2 && km(D.locs[WHO],D.locs[other()])>=1) obj.fitBounds(pts,{paddingTopLeft:[70,100],paddingBottomRight:[70,40],maxZoom:13});
+    else if(pts.length) obj.setView(pts[pts.length-1],14);
+  }
+}
+async function mountMap(){
+  const slot=$("#mapslot"); if(!slot) return;
+  if(!mapEl){ mapEl=document.createElement("div"); mapEl.className="mapbox"; mapEl.innerHTML=`<button class="mapfs" aria-label="Agrandir">⤢</button>`; }
+  slot.appendChild(mapEl);
+  mapEl.querySelector(".mapfs").onclick=openFullMap;
+  try{ await loadLeaflet(); }catch(e){ mapEl.insertAdjacentHTML("beforeend",`<p class="center faint" style="padding-top:130px">Carte indisponible</p>`); return; }
+  if(!mapObj){
+    const div=document.createElement("div"); div.style.cssText="position:absolute;inset:0"; mapEl.prepend(div);
+    mapObj=L.map(div,{zoomControl:false,attributionControl:true,worldCopyJump:true});
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{subdomains:"abcd",maxZoom:19,
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'}).addTo(mapObj);
+    mapLayers=L.layerGroup().addTo(mapObj);
+  }
+  const key=JSON.stringify([D.locs,D.avatars,WHO]);
+  mapObj.invalidateSize();
+  if(key!==mapKey){ const first=!mapKey; mapKey=key; drawMap(mapEl,mapObj,mapLayers,first||true); }
+}
+async function openFullMap(){
+  const box=document.createElement("div"); box.className="mapfull";
+  box.innerHTML=`<div class="mapbox"></div><button class="closex" style="position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;z-index:600">×</button>`;
+  document.body.appendChild(box);
+  box.querySelector(".closex").onclick=()=>box.remove();
+  try{ await loadLeaflet(); }catch(e){ box.remove(); return toast("Carte indisponible pour l'instant"); }
+  const m=L.map(box.querySelector(".mapbox"),{zoomControl:true,worldCopyJump:true});
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{subdomains:"abcd",maxZoom:19,
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'}).addTo(m);
+  drawMap(null,m,L.layerGroup().addTo(m),true);
+}
+function getPrecise(){ const l=D.locs[WHO]; if(l) return l.precise!==false; return LS.get("nd-precise")!=="0"; }
+function shareLocation(btn,opts={}){
+  return new Promise(resolve=>{
+    if(!navigator.geolocation){ if(!opts.silent) toast("Localisation non disponible"); return resolve(false); }
+    const precise=opts.precise!=null?opts.precise:getPrecise();
+    LS.set("nd-precise",precise?"1":"0");
+    if(btn) btn.disabled=true;
+    navigator.geolocation.getCurrentPosition(async pos=>{
+      const lat=pos.coords.latitude, lon=pos.coords.longitude;
+      let city="";
+      try{ const r=await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=fr`); const j=await r.json(); city=j.city||j.locality||""; }catch(e){}
+      const ok=opts.silent ? await api("POST",{action:"loc.set",lat,lon,city,precise,acc:pos.coords.accuracy}).then(j=>{ D=j; render(); return true; }).catch(()=>false)
+                           : await act("loc.set",{lat,lon,city,precise,acc:pos.coords.accuracy});
+      if(btn&&btn.isConnected) btn.disabled=false;
+      if(ok && !opts.silent) toast("Position partagée 📍");
+      resolve(!!ok);
+    },err=>{ if(btn&&btn.isConnected) btn.disabled=false; if(!opts.silent) toast(err.code===1?"Autorise la localisation dans les réglages du téléphone":"Position introuvable"); resolve(false); },
+    {enableHighAccuracy:precise,timeout:20000,maximumAge:precise?60000:600000});
+  });
+}
+// Met la position à jour en silence à l'ouverture (si déjà partagée et autorisée)
+async function autoLocation(){
+  const l=D.locs[WHO]; if(!l || Date.now()-l.t<5*60000 || !navigator.permissions) return;
+  try{ const st=await navigator.permissions.query({name:"geolocation"}); if(st.state==="granted") shareLocation(null,{silent:true,precise:l.precise!==false}); }catch(e){}
+}
+
+/* ---- Photo de profil ---- */
+function avatarSheet(){
+  const url=avatarUrl(WHO);
+  const m=sheet(`<h2>Ta photo</h2><p>Elle apparaît sur votre carte.</p>
+    <input type="file" id="avf" accept="image/*" hidden>
+    <div class="row" style="margin-top:14px;gap:16px"><div class="avatarbig" id="avp" style="${url?`background-image:url('${url}')`:""}">${url?"":esc(nm(WHO).slice(0,1))}</div>
+      <div class="stack grow"><button class="btn" id="avpick">Choisir une photo</button>${url?`<button class="btn ghost" id="avdel">Retirer</button>`:""}</div></div>`);
+  m.querySelector("#avpick").onclick=()=>m.querySelector("#avf").click();
+  m.querySelector("#avf").onchange=async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    try{
+      const {img,url:u}=await loadImage(f);
+      const side=Math.min(img.naturalWidth,img.naturalHeight), c=document.createElement("canvas"); c.width=c.height=320;
+      c.getContext("2d").drawImage(img,(img.naturalWidth-side)/2,(img.naturalHeight-side)/3,side,side,0,0,320,320);
+      URL.revokeObjectURL(u);
+      const data=c.toDataURL("image/jpeg",.82);
+      m.querySelector("#avp").style.backgroundImage=`url('${data}')`; m.querySelector("#avp").textContent="";
+      if(await act("avatar.set",{photo:data},m.querySelector("#avpick"))){ mapKey=""; toast("Photo enregistrée 🙂"); m.remove(); render(true); }
+    }catch(err){ toast(err.message); }
+  };
+  const del=m.querySelector("#avdel"); if(del) del.onclick=async()=>{ if(await act("avatar.del",{})){ mapKey=""; m.remove(); render(true); } };
+}
+
 const WX={0:["☀️","Ciel dégagé"],1:["🌤️","Plutôt dégagé"],2:["⛅","Nuageux"],3:["☁️","Couvert"],45:["🌫️","Brouillard"],48:["🌫️","Brouillard"],
   51:["🌦️","Bruine"],53:["🌦️","Bruine"],55:["🌦️","Bruine"],61:["🌧️","Pluie"],63:["🌧️","Pluie"],65:["🌧️","Forte pluie"],66:["🌧️","Pluie glacée"],67:["🌧️","Pluie glacée"],
   71:["🌨️","Neige"],73:["🌨️","Neige"],75:["❄️","Forte neige"],77:["🌨️","Neige"],80:["🌦️","Averses"],81:["🌧️","Averses"],82:["⛈️","Fortes averses"],
@@ -1152,9 +1297,12 @@ function settings(){
         <p class="faint" style="margin:10px 0 0">${D.push.theirs?`${esc(nm(other()))} les a activées ✓`:`${esc(nm(other()))} ne les a pas encore activées.`}</p></div>
       <div><div class="faint" style="margin-bottom:6px">Sur ce téléphone, je suis</div>
         <div class="seg" id="sw">${Object.entries(PEOPLE).map(([k,v])=>`<button data-v="${k}" class="${k===WHO?"on":""}">${esc(v)}</button>`).join("")}</div></div>
-      <div class="card" style="margin:0"><div class="eyebrow">📍 Distance et météo</div>
-        <p style="margin:0 0 12px;color:var(--text)">${D.locs[WHO]?"Ta position approximative est partagée ✓":"Partage ta position approximative (à ~1 km près) pour voir la distance qui vous sépare et la météo chez l'autre."}</p>
+      <div class="card" style="margin:0"><div class="eyebrow">🗺️ Ma position sur la carte</div>
+        <p style="margin:0 0 10px;color:var(--text)">${D.locs[WHO]?`Partagée ✓ · ${D.locs[WHO].precise===false?"approximative (~1 km)":"précise"} · mise à jour à chaque ouverture`:"Pas partagée."}</p>
+        <div class="seg" id="sprec" style="margin-bottom:10px"><button data-v="1" class="${getPrecise()?"on":""}">📍 Précise</button><button data-v="0" class="${getPrecise()?"":"on"}">≈ Ville (~1 km)</button></div>
         ${D.locs[WHO]?`<div class="row"><button class="btn small ghost" id="locup">Mettre à jour</button><button class="btn small ghost" id="locoff">Ne plus partager</button></div>`:`<button class="btn" id="locon">Partager ma position</button>`}</div>
+      <div class="card" style="margin:0"><div class="row" style="gap:14px"><div class="avatarbig" style="width:56px;height:56px;font-size:22px;${avatarUrl(WHO)?`background-image:url('${avatarUrl(WHO)}')`:""}">${avatarUrl(WHO)?"":esc(nm(WHO).slice(0,1))}</div>
+        <div class="grow"><b>Ta photo sur la carte</b><div class="faint">${avatarUrl(WHO)?"Ajoutée ✓":"Pas encore de photo"}</div></div><button class="btn small ghost" id="avbtn">${avatarUrl(WHO)?"Changer":"Ajouter"}</button></div></div>
       <button class="btn ghost" id="inst">📲 Installer l'appli sur l'écran d'accueil</button>
       <button class="btn ghost" id="out">Se déconnecter</button>
     </div>`);
@@ -1169,8 +1317,11 @@ function settings(){
     try{ const s=swReg && await swReg.pushManager.getSubscription(); if(s){ await act("push.unsub",{endpoint:s.endpoint}); await s.unsubscribe(); } }catch(e){}
     WHO=b.dataset.v; LS.set("nd-who",WHO); m.remove(); await checkPush(); refresh(true);
   });
-  on("#locon",e=>shareLocation(e.currentTarget).then(ok=>ok&&m.remove()));
-  on("#locup",e=>shareLocation(e.currentTarget).then(ok=>ok&&m.remove()));
+  const prec=()=>m.querySelector("#sprec .on").dataset.v==="1";
+  m.querySelectorAll("#sprec button").forEach(b=>b.onclick=()=>m.querySelectorAll("#sprec button").forEach(x=>x.classList.toggle("on",x===b)));
+  on("#locon",e=>shareLocation(e.currentTarget,{precise:prec()}).then(ok=>ok&&m.remove()));
+  on("#locup",e=>shareLocation(e.currentTarget,{precise:prec()}).then(ok=>ok&&m.remove()));
+  on("#avbtn",()=>{ m.remove(); avatarSheet(); });
   on("#locoff",async()=>{ if(await act("loc.clear",{})){ m.remove(); toast("Position retirée"); } });
   on("#out",()=>{ m.remove(); logout(); });
 }

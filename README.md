@@ -16,7 +16,7 @@ Fonctionnalités inspirées des applis pour couples à distance (Paired, Togethe
 - 💌 **Petits mots** avec « vu » et cœur, et **dessins à la main**, reçus en notification.
 - ✉️ **Lettres « Ouvre quand… »** (tu es triste, je te manque…) et **lettres datées** qui ne s'ouvrent qu'à une date précise.
 - 🫙 **Bocal « Pourquoi je t'aime »** : chacun remplit le bocal de l'autre, qui tire un papier quand il veut.
-- 🌍 **Distance et météo** chez l'autre (position approximative partagée volontairement, météo Open-Meteo).
+- 🗺️ **Carte avec vos visages** : chacun partage volontairement sa position (précise ou ~1 km), mise à jour à l'ouverture de l'appli ; photo de profil, ligne entre vous, distance et météo chez l'autre (Leaflet, fond de carte CARTO/OpenStreetMap, météo Open-Meteo).
 - 📸 **Souvenirs** : photos façon polaroid, avec une légende et des petits mots écrits dessus.
 - 📅 **Dates importantes** avec compte à rebours.
 - ❓ **Question du jour** : on voit la réponse de l'autre seulement après avoir répondu.
