@@ -56,3 +56,13 @@ L'appli accueille plusieurs couples, chacun dans son **espace** privé (données
 - **Administration** (⚙️ Réglages de l'espace principal → 🛡️ Administration, mot de passe admin distinct) :
   ouvrir ou fermer les inscriptions, invitations (quand les inscriptions sont fermées), liste des espaces,
   désactivation, réactivation et suppression définitive d'un espace.
+
+## Entre couples : couples amis et fil commun (onglet « Amis »)
+
+- **Couples amis** : chaque espace a un **code ami** (6 caractères). Un couple ajoute un autre couple avec son code ; l'autre doit **accepter**.
+  Les couples amis ont une **conversation à 4** (messages et petits gestes 💕 🎉 🥂), avec notifications. On peut retirer un couple ami
+  (la conversation est effacée). Un couple non ami ne peut rien lire.
+- **Fil commun** : publications visibles par tous les couples (prénom + couple), avec ❤️ et commentaires (notification à l'auteur).
+  Chacun supprime ses propres publications et peut **signaler** un abus. Limites anti-spam (8 publications par heure et par couple).
+- **Admin** : « Modération du fil commun » dans 🛡️ Administration (signalements, suppression de n'importe quelle publication).
+- Les espaces privés (mots, souvenirs, lettres, position…) ne sont jamais partagés.

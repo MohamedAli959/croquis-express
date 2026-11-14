@@ -52,7 +52,7 @@
   .tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:6;width:calc(100% - 24px);max-width:520px;
         display:flex;padding:6px;border-radius:24px;background:rgba(255,255,255,.94);border:1px solid var(--stroke);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
         box-shadow:0 10px 30px rgba(58,21,32,.12)}
-  .tabs button{flex:1;border:0;background:none;color:var(--faint);padding:8px 0 6px;border-radius:18px;cursor:pointer;font-size:11px;font-weight:700;position:relative;
+  .tabs button{flex:1;min-width:0;border:0;background:none;color:var(--faint);padding:8px 0 6px;border-radius:18px;cursor:pointer;font-size:10.5px;font-weight:700;position:relative;
                display:flex;flex-direction:column;align-items:center;gap:3px;transition:background .2s,color .2s}
   .tabs svg{width:22px;height:22px}
   .tabs button.on{color:var(--rose2);background:var(--lav)}
@@ -367,6 +367,27 @@
   @media (prefers-reduced-motion:reduce){.bloom .petal{animation:none;opacity:.3;top:auto}}
   .solo{position:relative;z-index:1}
 
+  /* amis & fil commun */
+  .codebox{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--glass2);border-radius:16px;padding:12px 14px;margin-top:8px}
+  .codebox b{font-family:var(--serif);font-size:28px;letter-spacing:4px;color:var(--rose2)}
+  .friend{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--stroke)}
+  .friend:last-child{border-bottom:0}
+  .fav{width:44px;height:44px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--lav);color:var(--rose2);font-family:var(--serif);font-weight:700;font-size:16px}
+  .post{background:#fff;border-radius:22px;padding:14px 16px;margin:12px 0;box-shadow:var(--shadow);border:1px solid rgba(243,223,226,.7)}
+  .post .ph{display:flex;align-items:center;gap:10px}
+  .post .tx{white-space:pre-wrap;word-break:break-word;margin:10px 0 6px;font-size:16px;line-height:1.45}
+  .post .acts{display:flex;gap:6px;align-items:center;margin-top:4px}
+  .pact{border:0;background:var(--glass2);border-radius:999px;padding:7px 12px;font-weight:700;font-size:13px;color:var(--muted);cursor:pointer}
+  .pact.on{background:var(--lav);color:var(--rose2)}
+  .cmt{background:var(--glass2);border-radius:14px;padding:8px 12px;margin-top:8px;font-size:14px}
+  .cmt b{color:var(--rose2);font-size:12px}
+  .gest{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+  .gest button{border:1px solid var(--stroke);background:#fff;border-radius:999px;padding:6px 10px;font-size:18px;cursor:pointer}
+  .fmsg{max-width:84%;padding:10px 14px;margin:8px 0;border-radius:18px;background:#fff;border:1px solid var(--stroke)}
+  .fmsg.me{margin-left:auto;background:linear-gradient(135deg,#DC2F45,#C8102E);color:#fff;border:0}
+  .fmsg .w{font-size:11px;font-weight:700;opacity:.75;margin-bottom:2px}
+  .fmsg .t{white-space:pre-wrap;word-break:break-word}
+
   /* fenêtres, toasts */
   .modal{position:fixed;inset:0;background:rgba(58,21,32,.35);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:20;animation:fade .2s}
   .modal .sheet{width:100%;max-width:560px;max-height:94dvh;overflow:auto;background:#fff;border:1px solid var(--stroke);border-bottom:0;box-shadow:0 -10px 40px rgba(58,21,32,.12);
@@ -461,6 +482,7 @@ const ICONS={
   letters:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
   memories:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>',
   question:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-4-7.5"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>',
+  social:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c.6-3.4 3-5.4 6-5.4s5.4 2 6 5.4"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.7c2.6.1 4.6 1.9 5.2 5"/></svg>',
   phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>',
   video:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m23 7-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>',
   gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
@@ -490,7 +512,7 @@ let CODE=LS.get(lsk("nd-code")), WHO=LS.get(lsk("nd-who")), D=null, PEOPLE={}, M
 const P1=()=>MEMBERS[0], P2=()=>MEMBERS[1];
 let tab=LS.get("nd-tab")||"home", pendingRender=false, openMem=null, CLOCK=0, memSub=LS.get("nd-memsub")||"photos";
 const sNow=()=>Date.now()+CLOCK;
-if(!["home","notes","memories","letters","question"].includes(tab)) tab="home";
+if(!["home","notes","memories","letters","question","social"].includes(tab)) tab="home";
 const other=()=>MEMBERS.find(m=>m!==WHO)||MEMBERS[0];
 const nm=p=>PEOPLE[p]||p;
 
@@ -696,10 +718,15 @@ function adminScreen(){
         ${c.id==="main"?"":`<button class="btn small ghost" data-dis="${c.id}" data-v="${c.disabled?0:1}">${c.disabled?"Réactiver":"Désactiver"}</button>
           <button class="btn small ghost" data-del="${c.id}" data-n="${esc(Object.values(c.names).join(" & "))}" style="color:#B3261E">Supprimer</button>`}</div>
       </div>`).join("")}
+      <details style="margin-top:12px" id="afeedd"><summary>🌍 Modération du fil commun</summary><div id="afeed"><p>Chargement…</p></div></details>
       ${used.length?`<details style="margin-top:12px"><summary>Invitations utilisées (${used.length})</summary>${used.map(i=>`<div class="date"><div class="d"><b>${esc(i.names||i.note||i.code)}</b><div class="faint" style="font-size:12px">utilisée le ${dt(i.used)}</div></div></div>`).join("")}</details>`:""}
       <div class="row" style="margin-top:16px"><button class="btn small ghost" id="apw">Changer le mot de passe admin</button><button class="btn small ghost" id="aout">Se déconnecter</button></div>
       <p class="faint" style="font-size:12px;margin-top:12px">Tous les espaces partagent la même base Upstash et le même relais d'appels : surveille les quotas gratuits si les couples se multiplient.</p>`;
     const share=code=>shareLink(location.origin+"/?invite="+code,"Créez votre espace à deux sur Nous Deux 💕");
+    const fd=box.querySelector("#afeedd");
+    const loadFeed=async()=>{ try{ const f=await adminApi("admin.feed"); box.querySelector("#afeed").innerHTML=f.posts.length?f.posts.map(p=>`<div class="date"><div class="d"><b>${esc(p.name)} · ${esc(p.couple)}</b>${p.reports?` <span class="pillnote" style="margin:0 0 0 6px;padding:2px 8px;font-size:11px;color:#B3261E">${p.reports} signalement${p.reports>1?"s":""}</span>`:""}<div style="font-size:14px;white-space:pre-wrap">${esc(p.text)}</div><div class="faint" style="font-size:12px">${ago(p.t)}</div></div><button class="x" data-afdel="${p.id}" aria-label="Supprimer">×</button></div>`).join(""):`<p style="margin:8px 0 0">Aucune publication.</p>`;
+      box.querySelectorAll("[data-afdel]").forEach(b=>b.onclick=async()=>{ if(!confirm("Supprimer cette publication ?")) return; await adminApi("admin.feed.delete",{id:b.dataset.afdel}).catch(e=>toast(e.message)); loadFeed(); }); }catch(e){ box.querySelector("#afeed").innerHTML=`<p>${esc(e.message)}</p>`; } };
+    fd.addEventListener("toggle",()=>{ if(fd.open) loadFeed(); });
     box.querySelector("#asign").onclick=async()=>{ await adminApi("admin.signup",{open:!j.signupOpen}).catch(e=>toast(e.message)); load(); };
     box.querySelector("#inew").onclick=async e=>{ e.target.disabled=true; try{ const r=await adminApi("admin.invite",{note:box.querySelector("#inote").value}); await load(); share(r.code); }catch(err){ toast(err.message); e.target.disabled=false; } };
     box.querySelectorAll("[data-ishare]").forEach(b=>b.onclick=()=>share(b.dataset.ishare));
@@ -854,10 +881,12 @@ function openDeepLink(u){
   const uc=u.searchParams.get("c");
   if(uc && uc!==CID){ LS.set("nd-cid",uc); location.href=u.pathname+u.search; return; }
   const t=u.searchParams.get("tab"), m=u.searchParams.get("m"), sn=u.searchParams.get("snap"), sb=u.searchParams.get("sub");
-  if(sb){ memSub=sb; LS.set("nd-memsub",sb); }
+  if(sb){ if(sb==="feed"||sb==="friends"){ socSub=sb; LS.set("nd-socsub",sb); } else { memSub=sb; LS.set("nd-memsub",sb); } }
+  const chatWith=u.searchParams.get("chat");
+  if(chatWith){ history.replaceState(null,"","/"); tab="social"; socSub="friends"; LS.set("nd-tab",tab); render(true); openFriendChat(chatWith); return; }
   if(u.searchParams.get("movie")){ history.replaceState(null,"","/"); refresh(true).then(()=>checkMovie(true)); return; }
   history.replaceState(null,"","/");
-  if(t && ["home","notes","memories","letters","question"].includes(t)){ tab=t; LS.set("nd-tab",tab); }
+  if(t && ["home","notes","memories","letters","question","social"].includes(t)){ tab=t; LS.set("nd-tab",tab); }
   render(true); window.scrollTo(0,0);
   if(m){ const x=D.memories.find(y=>y.id===m); if(x) memoryView(x.id); }
   if(sn){ tab="home"; LS.set("nd-tab",tab); render(true); refresh(true).then(()=>viewSnap(sn)); return; }
@@ -865,7 +894,7 @@ function openDeepLink(u){
 }
 
 /* ================= Structure ================= */
-const TABS=[["home","Nous"],["notes","Mots"],["memories","Souvenirs"],["letters","Lettres"],["question","Question"]];
+const TABS=[["home","Nous"],["notes","Mots"],["memories","Souvenirs"],["letters","Lettres"],["question","Question"],["social","Amis"]];
 function shell(){
   app.innerHTML=`
     <header class="top"><div class="brand">${esc(nm(P1()))}<b>♥</b>${esc(nm(P2()))}</div><div class="row" style="gap:8px"><button class="round" id="callA" aria-label="Appel audio">${ICONS.phone}</button><button class="round" id="callV" aria-label="Appel vidéo">${ICONS.video}</button><button class="round" id="menu" aria-label="Réglages">${ICONS.gear}</button></div></header>
@@ -910,7 +939,7 @@ function render(force){
   const y=window.scrollY;
   // rafraîchissement automatique : on garde ce qui a été tapé et les sections ouvertes
   const keep=force?null:snapshotForm();
-  ({home:homeTab,notes:notesTab,memories:memoriesTab,letters:lettersTab,question:questionTab})[tab]();
+  ({home:homeTab,notes:notesTab,memories:memoriesTab,letters:lettersTab,question:questionTab,social:socialTab})[tab]();
   if(keep) restoreForm(keep);
   if(!force) window.scrollTo(0,y);
   if(openMem && $("#memsheet")) fillMemory(openMem);
@@ -2104,6 +2133,108 @@ function writeLetter(){
     if(r){ m.remove(); hearts(10); toast(sentMsg(r)); }
   };
 }
+
+/* ================= Amis : couples amis & fil commun ================= */
+let socSub=LS.get("nd-socsub")||"friends", SOC={social:null,feed:null,ts:0,fts:0}, socLoading=false;
+async function socApi(action,data={}){ const j=await api("POST",{action,...data}); return j; }
+async function loadSocial(force){
+  if(socLoading) return; const now=Date.now();
+  const need=socSub==="feed"?(force||now-SOC.fts>20000):(force||now-SOC.ts>20000);
+  if(!need) return;
+  socLoading=true;
+  try{
+    if(socSub==="feed"){ SOC.feed=await socApi("feed.get"); SOC.fts=Date.now(); }
+    else { SOC.social=await socApi("social.get"); SOC.ts=Date.now(); }
+  }catch(e){ toast(e.message); }
+  socLoading=false;
+  if(tab==="social") render();
+}
+function socialTab(){
+  if(!["friends","feed"].includes(socSub)) socSub="friends";
+  $("#page").innerHTML=`
+    <h2 style="margin:10px 0 10px">Amis</h2>
+    <div class="seg" id="ssub"><button data-v="friends">💞 Couples amis</button><button data-v="feed">🌍 Fil commun</button></div>
+    <div id="sub"></div>`;
+  $$("#ssub button").forEach(b=>{ b.classList.toggle("on",b.dataset.v===socSub); b.onclick=()=>{ socSub=b.dataset.v; LS.set("nd-socsub",socSub); socialTab(); loadSocial(true); }; });
+  (socSub==="feed"?feedPane:friendsPane)();
+  loadSocial();
+}
+const initials=c=>c.split("&").map(x=>x.trim()[0]||"").join("&");
+function friendsPane(){
+  const S=SOC.social;
+  if(!S){ $("#sub").innerHTML=`<p class="center" style="margin-top:30px">Chargement…</p>`; return; }
+  const fr=S.friends.filter(f=>f.status==="friends"), inc=S.friends.filter(f=>f.status==="in"), out=S.friends.filter(f=>f.status==="out");
+  $("#sub").innerHTML=`
+    <div class="card"><div class="eyebrow">Votre code ami</div>
+      <p style="margin:0">Donne ce code à un autre couple pour qu'il vous ajoute. Vos espaces restent privés : seule la conversation entre couples est partagée.</p>
+      <div class="codebox"><b>${esc(S.code)}</b><button class="btn small ghost" id="sharecode">Partager</button></div></div>
+    <div class="card"><div class="eyebrow">Ajouter un couple ami</div>
+      <form class="row" id="addf"><input type="text" id="fcode" class="grow" maxlength="8" placeholder="Leur code ami" autocapitalize="characters" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px"><button class="btn small" style="padding:13px 16px">Ajouter</button></form></div>
+    ${inc.length?`<div class="card"><div class="eyebrow">Demandes reçues</div>${inc.map(f=>`<div class="friend"><div class="fav">${esc(initials(f.couple))}</div><div class="grow" style="flex:1;min-width:0"><b>${esc(f.couple)}</b><div class="faint" style="font-size:13px">veulent devenir couples amis</div></div>
+      <button class="btn small" data-acc="${f.id}">Accepter</button><button class="x" data-rm="${f.id}" aria-label="Refuser">×</button></div>`).join("")}</div>`:""}
+    <div class="card"><div class="eyebrow">Vos couples amis</div>
+      ${fr.length?fr.map(f=>`<div class="friend" data-chat="${f.id}" style="cursor:pointer"><div class="fav">${esc(initials(f.couple))}</div><div style="flex:1;min-width:0"><b>${esc(f.couple)}</b><div class="faint" style="font-size:13px">Toucher pour discuter</div></div><span style="color:var(--rose2);font-weight:700">›</span></div>`).join("")
+        :`<p style="margin:0">Pas encore de couple ami. Partagez votre code 💕</p>`}
+      ${out.length?`<p class="faint" style="font-size:13px;margin:10px 0 0">En attente : ${out.map(f=>esc(f.couple)).join(", ")}</p>`:""}
+    </div>`;
+  $("#sharecode").onclick=()=>shareLink(location.origin+"/",`Ajoutez-nous comme couple ami sur Nous Deux 💕 Notre code ami : ${S.code}`);
+  $("#addf").onsubmit=async e=>{ e.preventDefault(); const c=$("#fcode").value.trim(); if(!c) return toast("Entre leur code ami");
+    try{ const r=await socApi("friend.add",{code:c}); toast(r.couple?`Demande envoyée à ${r.couple} 💌`:"Vous êtes maintenant couples amis 🥂"); loadSocial(true); }catch(err){ toast(err.message); } };
+  $$("[data-acc]").forEach(b=>b.onclick=async()=>{ try{ await socApi("friend.accept",{id:b.dataset.acc}); hearts(6); toast("Vous êtes maintenant couples amis 🥂"); loadSocial(true); }catch(e){ toast(e.message); } });
+  $$("[data-rm]").forEach(b=>b.onclick=async()=>{ if(!confirm("Refuser cette demande ?")) return; await socApi("friend.remove",{id:b.dataset.rm}).catch(e=>toast(e.message)); loadSocial(true); });
+  $$("[data-chat]").forEach(b=>b.onclick=()=>openFriendChat(b.dataset.chat));
+}
+function openFriendChat(id){
+  const m=sheet(`<div id="fchat"><p class="center">Chargement…</p></div>`);
+  const box=m.querySelector("#fchat");
+  let timer=null, last="";
+  const draw=j=>{
+    const key=JSON.stringify(j.messages.map(x=>x.id)); if(key===last) return; last=key;
+    const draft=box.querySelector("#fm")?box.querySelector("#fm").value:"";
+    box.innerHTML=`<div class="row" style="margin-bottom:6px"><div class="fav">${esc(initials(j.with.couple))}</div><div class="grow"><h3 style="font-size:24px">${esc(j.with.couple)}</h3><div class="faint" style="font-size:13px">Conversation entre vos deux couples</div></div>
+        <button class="link" id="frm" style="color:var(--faint);font-size:12px">Retirer</button></div>
+      <div id="fmsgs" style="max-height:50vh;overflow:auto;padding:4px 2px">${j.messages.length?j.messages.map(x=>{ const mine=x.sp===CID&&x.who===WHO, ours=x.sp===CID;
+        return `<div class="fmsg ${mine?"me":""}"><div class="w">${esc(x.name)} · ${ours?"vous":esc(x.couple)} · ${hhmm(x.t)}</div><div class="t">${esc(x.text)}</div></div>`; }).join("")
+        :`<p class="center" style="margin:24px 0">Dites bonjour 👋</p>`}</div>
+      <div class="gest">${["💕","🎉","🥂","🤗","😂","🔥"].map(g=>`<button data-g="${g}">${g}</button>`).join("")}</div>
+      <div class="row" style="align-items:flex-end"><textarea id="fm" class="grow" maxlength="1000" placeholder="Votre message…" style="min-height:52px"></textarea><button class="btn small" id="fs" style="padding:14px">Envoyer</button></div>`;
+    const ta=box.querySelector("#fm"); ta.value=draft;
+    const list=box.querySelector("#fmsgs"); list.scrollTop=list.scrollHeight;
+    const send=async t=>{ if(!t) return; try{ const r=await socApi("fchat.send",{with:id,text:t}); ta.value=""; last=""; draw(r); }catch(e){ toast(e.message); } };
+    box.querySelector("#fs").onclick=()=>send(ta.value.trim());
+    box.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>send(b.dataset.g));
+    box.querySelector("#frm").onclick=async()=>{ if(!confirm(`Retirer ${j.with.couple} de vos couples amis ? La conversation sera effacée.`)) return; await socApi("friend.remove",{id}).catch(e=>toast(e.message)); m.remove(); loadSocial(true); };
+  };
+  const tick=async()=>{ try{ draw(await socApi("fchat.get",{with:id})); }catch(e){ toast(e.message); m.remove(); return; } };
+  tick(); timer=setInterval(()=>{ if(!document.hidden && !(document.activeElement&&document.activeElement.id==="fm"&&document.activeElement.value)) tick(); },5000);
+  const obs=new MutationObserver(()=>{ if(!m.isConnected){ clearInterval(timer); obs.disconnect(); } }); obs.observe(document.body,{childList:true});
+}
+function feedPane(){
+  const F=SOC.feed;
+  $("#sub").innerHTML=`
+    <div class="card"><div class="eyebrow">Partager avec tous les couples</div>
+      <textarea id="fp" maxlength="800" placeholder="Une pensée, un conseil, un beau moment à partager…" style="min-height:70px"></textarea>
+      <button class="btn" id="fpub" style="margin-top:10px">Publier</button>
+      <p class="faint" style="font-size:12px;margin:8px 0 0">Visible par tous les couples de l'appli, avec vos prénoms. Restez bienveillants 💕</p></div>
+    ${!F?`<p class="center">Chargement…</p>`:F.posts.length?F.posts.map(p=>`<div class="post">
+      <div class="ph"><div class="fav">${esc(initials(p.couple))}</div><div style="flex:1;min-width:0"><b>${esc(p.name)}</b> <span class="faint" style="font-size:13px">· ${esc(p.couple)}</span><div class="faint" style="font-size:12px">${ago(p.t)}</div></div>
+        ${p.mine?`<button class="x" data-pdel="${p.id}" aria-label="Supprimer">×</button>`:`<button class="link" data-prep="${p.id}" style="color:var(--faint);font-size:12px">Signaler</button>`}</div>
+      <div class="tx">${esc(p.text)}</div>
+      <div class="acts"><button class="pact ${p.liked?"on":""}" data-like="${p.id}">❤️ ${p.likes||""}</button><button class="pact" data-copen="${p.id}">💬 ${p.comments.length||""}</button></div>
+      <div id="cm-${p.id}" style="display:${openComments.has(p.id)?"block":"none"}">
+        ${p.comments.map(c=>`<div class="cmt"><b>${esc(c.name)} · ${esc(c.couple)}</b>${c.mine?` <button class="x" data-cdel="${c.id}" data-post="${p.id}" style="font-size:14px">×</button>`:""}<div>${esc(c.text)}</div></div>`).join("")}
+        <div class="row" style="margin-top:8px"><input type="text" id="ci-${p.id}" class="grow" maxlength="500" placeholder="Votre commentaire…"><button class="btn small" data-csend="${p.id}" style="padding:12px 14px">Envoyer</button></div>
+      </div></div>`).join(""):`<p class="center" style="margin:24px 0;font-family:var(--serif);font-style:italic;font-size:20px">Soyez le premier couple à partager quelque chose 🌍</p>`}`;
+  const upd=r=>{ SOC.feed=r; SOC.fts=Date.now(); feedPane(); };
+  $("#fpub").onclick=async e=>{ const t=$("#fp").value.trim(); if(!t) return toast("Écris quelque chose"); e.target.disabled=true; try{ upd(await socApi("feed.post",{text:t})); hearts(5); }catch(err){ toast(err.message); e.target.disabled=false; } };
+  $$("[data-like]").forEach(b=>b.onclick=async()=>{ try{ upd(await socApi("feed.like",{id:b.dataset.like})); }catch(e){ toast(e.message); } });
+  $$("[data-copen]").forEach(b=>b.onclick=()=>{ const id=b.dataset.copen; if(openComments.has(id)) openComments.delete(id); else openComments.add(id); const el=$("#cm-"+id); if(el) el.style.display=openComments.has(id)?"block":"none"; });
+  $$("[data-csend]").forEach(b=>b.onclick=async()=>{ const id=b.dataset.csend, i=$("#ci-"+id), t=i.value.trim(); if(!t) return; try{ upd(await socApi("feed.comment",{id,text:t})); }catch(e){ toast(e.message); } });
+  $$("[data-pdel]").forEach(b=>b.onclick=async()=>{ if(!confirm("Supprimer cette publication ?")) return; try{ upd(await socApi("feed.delete",{id:b.dataset.pdel})); }catch(e){ toast(e.message); } });
+  $$("[data-cdel]").forEach(b=>b.onclick=async()=>{ try{ upd(await socApi("feed.cdelete",{id:b.dataset.cdel,post:b.dataset.post})); }catch(e){ toast(e.message); } });
+  $$("[data-prep]").forEach(b=>b.onclick=async()=>{ if(!confirm("Signaler cette publication à l'administrateur ?")) return; try{ await socApi("feed.report",{id:b.dataset.prep}); toast("Merci, c'est signalé 🙏"); }catch(e){ toast(e.message); } });
+}
+const openComments=new Set();
 
 /* ================= Question du jour ================= */
 function questionTab(){

@@ -46,6 +46,14 @@
  *   nd:loginrev      hash   id -> empreinte actuelle (pour la mettre à jour ou la supprimer)
  *   nd:settings      réglages globaux (inscriptions ouvertes ou fermées)
  *   nd:pepper        secret aléatoire mêlé aux empreintes de connexion
+ *
+ * SOCIAL (entre couples) :
+ *   nd:fcode / nd:fcoderev   code ami <-> id de l'espace
+ *   nd:friends:<id>          hash autreId -> {status: "out"|"in"|"friends", t}
+ *   nd:fchat:<a>:<b>         hash id -> message de la conversation entre deux couples amis (a < b)
+ *   nd:feed                  hash id -> publication du fil commun
+ *   nd:feedlikes:<id>        hash "espace:personne" -> 1      nd:feedc:<id>  hash id -> commentaire
+ *   nd:feedrep:<id>          hash espace -> horodatage d'un signalement
  *   nd:vapid         clés des notifications (communes à tous les espaces)
  */
 const crypto = require("crypto");
@@ -134,7 +142,9 @@ const QUESTIONS = [
 /* ================= Outils ================= */
 // Clés globales (communes à tous les espaces)
 const G = { vapid: "nd:vapid", couples: "nd:couples", seen: "nd:seen", invites: "nd:invites", admin: "nd:admin", login: "nd:login", loginrev: "nd:loginrev",
-  settings: "nd:settings", pepper: "nd:pepper", fail: ip => `nd:fail:${ip}` };
+  settings: "nd:settings", pepper: "nd:pepper", fail: ip => `nd:fail:${ip}`,
+  fcode: "nd:fcode", fcoderev: "nd:fcoderev", friends: id => `nd:friends:${id}`, fchat: (a, b) => `nd:fchat:${[a, b].sort().join(":")}`,
+  feed: "nd:feed", feedlikes: id => `nd:feedlikes:${id}`, feedc: id => `nd:feedc:${id}`, feedrep: id => `nd:feedrep:${id}`, rate: k => `nd:rate:${k}` };
 // Clés de l'espace en cours : préfixe « nd: » pour l'espace principal, « nd:c:<id>: » pour les autres
 const K = { vapid: G.vapid, fail: G.fail };
 for (const name of ["auth", "subs", "cfg", "tz", "notes", "moods", "dates", "mem", "mnotes", "snaps", "sched", "call", "story", "songs", "sleep", "act", "letters", "jar", "thinks", "lastthink", "loc", "qa"])
@@ -373,18 +383,187 @@ const ADMIN = {
     if (b.id === "main") fail(400, "L'espace principal ne peut pas être supprimé.");
     const sp = await getSpace(String(b.id));
     const n = await deleteSpaceKeys(sp.prefix);
-    const [idx] = await db([["HGET", G.loginrev, sp.id]]);
-    await db([["HDEL", G.couples, sp.id], ["HDEL", G.seen, sp.id], ["HDEL", G.loginrev, sp.id], ...(idx ? [["HDEL", G.login, idx]] : [])]);
+    const [idx, fr, fc] = await db([["HGET", G.loginrev, sp.id], ["HGETALL", G.friends(sp.id)], ["HGET", G.fcoderev, sp.id]]);
+    const others = Object.keys(hobj(fr));
+    await db([["HDEL", G.couples, sp.id], ["HDEL", G.seen, sp.id], ["HDEL", G.loginrev, sp.id], ...(idx ? [["HDEL", G.login, idx]] : []),
+      ["DEL", G.friends(sp.id)], ["HDEL", G.fcoderev, sp.id], ...(fc ? [["HDEL", G.fcode, fc]] : []),
+      ...others.flatMap(o => [["HDEL", G.friends(o), sp.id], ["DEL", G.fchat(sp.id, o)]])]);
     return { deleted: n };
   },
   "admin.signup": async (b) => {
     await db([["SET", G.settings, JSON.stringify({ ...(await getSettings()), signupOpen: !!b.open })]]);
+  },
+  "admin.feed": async () => {
+    const [raw] = await db([["HGETALL", G.feed]]);
+    const posts = parseHash(raw).sort((a, b) => b.t - a.t).slice(0, 100);
+    const reps = posts.length ? await db(posts.map(p => ["HLEN", G.feedrep(p.id)])) : [];
+    return { posts: posts.map((p, i) => ({ ...p, reports: reps[i] })) };
+  },
+  "admin.feed.delete": async (b) => {
+    const id = String(b.id);
+    await db([["HDEL", G.feed, id], ["DEL", G.feedlikes(id)], ["DEL", G.feedc(id)], ["DEL", G.feedrep(id)]]);
   },
   "admin.password": async (b) => {
     const pw = String(b.newPassword || "").trim();
     if (pw.length < 8) fail(400, "8 caractères minimum.");
     const salt = crypto.randomBytes(16).toString("hex");
     await db([["SET", G.admin, JSON.stringify({ salt, hash: hashCode(salt, pw) })]]);
+  },
+};
+
+/* ================= Social : couples amis et fil commun ================= */
+const coupleName = sp => Object.values(sp.names).join(" & ");
+async function friendCode(id) {
+  const [c] = await db([["HGET", G.fcoderev, id]]);
+  if (c) return c;
+  for (let i = 0; i < 10; i++) {
+    const code = genCode(6).toUpperCase();
+    const [ok] = await db([["HSETNX", G.fcode, code, id]]);
+    if (ok) { await db([["HSET", G.fcoderev, id, code]]); return code; }
+  }
+  fail(500, "Impossible de créer le code ami.");
+}
+// Envoie une notification à tous les membres d'un autre espace (et éventuellement au partenaire)
+async function notifySpace(req, spaceId, payload, except) {
+  let sp; try { sp = await getSpace(spaceId); } catch (e) { return; }
+  if (sp.disabled) return;
+  await inSpace(sp, () => Promise.all(sp.members.filter(m => !(spaceId === except?.sp && m === except.who)).map(m => notify(req, m, payload))));
+}
+async function rateLimit(key, max, sec) {
+  const [n] = await db([["INCR", G.rate(key)]]);
+  if (n === 1) await db([["EXPIRE", G.rate(key), sec]]);
+  if (n > max) fail(429, "Doucement 🙂 Réessaie un peu plus tard.");
+}
+async function friendStatus(a, b) {
+  const [raw] = await db([["HGET", G.friends(a), b]]);
+  return raw ? JSON.parse(raw).status : null;
+}
+const me = b => ({ sp: ctx().id, who: b.who, name: ctx().names[b.who] || "?", couple: coupleName(ctx()) });
+
+const SOCIAL = {
+  "social.get": async () => {
+    const id = ctx().id, code = await friendCode(id);
+    const [raw] = await db([["HGETALL", G.friends(id)]]);
+    const list = [];
+    for (const [other, v] of Object.entries(hobj(raw))) {
+      let sp; try { sp = await getSpace(other); } catch (e) { continue; }
+      list.push({ id: other, names: sp.names, couple: coupleName(sp), ...JSON.parse(v), disabled: sp.disabled });
+    }
+    return { code, friends: list.sort((a, b) => b.t - a.t) };
+  },
+  "friend.add": async (b, req) => {
+    const id = ctx().id, code = String(b.code || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    await rateLimit("friendadd:" + id, 20, 3600);
+    const [other] = await db([["HGET", G.fcode, code]]);
+    if (!other) fail(404, "Aucun couple avec ce code ami.");
+    if (other === id) fail(400, "C'est votre propre code 🙂");
+    const sp = await getSpace(other);
+    if (sp.disabled) fail(404, "Aucun couple avec ce code ami.");
+    const st = await friendStatus(id, other), t = Date.now();
+    if (st === "friends") fail(409, "Vous êtes déjà couples amis.");
+    if (st === "out") fail(409, "Demande déjà envoyée, en attente de leur réponse.");
+    if (st === "in") return SOCIAL["friend.accept"]({ ...b, id: other }, req);
+    await db([["HSET", G.friends(id), other, JSON.stringify({ status: "out", t })], ["HSET", G.friends(other), id, JSON.stringify({ status: "in", t })]]);
+    await notifySpace(req, other, { title: `💞 ${coupleName(ctx())} veulent devenir couples amis`, body: "Ouvre l'appli pour accepter", tag: "friendreq-" + id, url: "/?tab=social" });
+    return { couple: coupleName(sp) };
+  },
+  "friend.accept": async (b, req) => {
+    const id = ctx().id, other = String(b.id);
+    if ((await friendStatus(id, other)) !== "in") fail(404, "Demande introuvable.");
+    const t = Date.now();
+    await db([["HSET", G.friends(id), other, JSON.stringify({ status: "friends", t })], ["HSET", G.friends(other), id, JSON.stringify({ status: "friends", t })]]);
+    await notifySpace(req, other, { title: `🥂 ${coupleName(ctx())} ont accepté`, body: "Vous êtes maintenant couples amis 💕", tag: "friendok-" + id, url: "/?tab=social&chat=" + id });
+  },
+  "friend.remove": async (b) => {
+    const id = ctx().id, other = String(b.id);
+    await db([["HDEL", G.friends(id), other], ["HDEL", G.friends(other), id], ["DEL", G.fchat(id, other)]]);
+  },
+  "fchat.get": async (b) => {
+    const id = ctx().id, other = String(b.with);
+    if ((await friendStatus(id, other)) !== "friends") fail(403, "Vous n'êtes pas couples amis.");
+    const [raw] = await db([["HGETALL", G.fchat(id, other)]]);
+    const sp = await getSpace(other);
+    return { with: { id: other, couple: coupleName(sp) }, messages: parseHash(raw).sort((a, b) => a.t - b.t).slice(-200) };
+  },
+  "fchat.send": async (b, req) => {
+    const id = ctx().id, other = String(b.with);
+    if ((await friendStatus(id, other)) !== "friends") fail(403, "Vous n'êtes pas couples amis.");
+    const text = longTxt(b.text, 1000);
+    if (!text) fail(400, "Écris un message.");
+    await rateLimit("fchat:" + id, 120, 3600);
+    const m = { id: newId(), ...me(b), text, t: Date.now() };
+    const key = G.fchat(id, other);
+    await db([["HSET", key, m.id, JSON.stringify(m)]]);
+    const payload = { title: `💬 ${m.name} (${m.couple})`, body: short(text, 160), tag: "fchat-" + [id, other].sort().join(""), url: "/?tab=social&chat=" + id };
+    await notifySpace(req, other, payload);
+    await notifySpace(req, id, { ...payload, url: "/?tab=social&chat=" + other }, { sp: id, who: b.who });
+    return SOCIAL["fchat.get"](b);
+  },
+  "feed.get": async () => {
+    const [raw] = await db([["HGETALL", G.feed]]);
+    const posts = parseHash(raw).sort((a, b) => b.t - a.t).slice(0, 60);
+    const mine = `${ctx().id}:`;
+    const extra = posts.length ? await db(posts.flatMap(p => [["HGETALL", G.feedlikes(p.id)], ["HGETALL", G.feedc(p.id)]])) : [];
+    return {
+      posts: posts.map((p, i) => {
+        const likes = Object.keys(hobj(extra[i * 2]));
+        return { ...p, likes: likes.length, liked: likes.some(k => k.startsWith(mine)), mine: p.sp === ctx().id,
+          comments: parseHash(extra[i * 2 + 1]).sort((a, b) => a.t - b.t).map(c => ({ ...c, mine: c.sp === ctx().id })) };
+      }),
+    };
+  },
+  "feed.post": async (b) => {
+    const text = longTxt(b.text, 800);
+    if (!text) fail(400, "Écris quelque chose à partager.");
+    await rateLimit("feed:" + ctx().id, 8, 3600);
+    const p = { id: newId(), ...me(b), text, t: Date.now() };
+    await db([["HSET", G.feed, p.id, JSON.stringify(p)]]);
+    // on garde les 300 publications les plus récentes
+    const [raw] = await db([["HGETALL", G.feed]]);
+    const old = parseHash(raw).sort((a, b) => b.t - a.t).slice(300);
+    if (old.length) await db(old.flatMap(o => [["HDEL", G.feed, o.id], ["DEL", G.feedlikes(o.id)], ["DEL", G.feedc(o.id)], ["DEL", G.feedrep(o.id)]]));
+    return SOCIAL["feed.get"](b);
+  },
+  "feed.like": async (b, req) => {
+    const [raw] = await db([["HGET", G.feed, String(b.id)]]);
+    if (!raw) fail(404, "Publication introuvable.");
+    const p = JSON.parse(raw), k = `${ctx().id}:${b.who}`;
+    const [has] = await db([["HGET", G.feedlikes(p.id), k]]);
+    if (has) await db([["HDEL", G.feedlikes(p.id), k]]);
+    else {
+      await db([["HSET", G.feedlikes(p.id), k, "1"]]);
+      if (p.sp !== ctx().id) await inSpace(await getSpace(p.sp), () => notify(req, p.who, { title: `❤️ ${me(b).name} (${coupleName(ctx())}) aime ta publication`, body: short(p.text, 120), tag: "feedlike-" + p.id, url: "/?tab=social&sub=feed" })).catch(() => {});
+    }
+    return SOCIAL["feed.get"](b);
+  },
+  "feed.comment": async (b, req) => {
+    const [raw] = await db([["HGET", G.feed, String(b.id)]]);
+    if (!raw) fail(404, "Publication introuvable.");
+    const text = longTxt(b.text, 500);
+    if (!text) fail(400, "Écris un commentaire.");
+    await rateLimit("feedc:" + ctx().id, 60, 3600);
+    const p = JSON.parse(raw), c = { id: newId(), ...me(b), text, t: Date.now() };
+    await db([["HSET", G.feedc(p.id), c.id, JSON.stringify(c)]]);
+    if (!(p.sp === ctx().id && p.who === b.who)) await inSpace(await getSpace(p.sp), () => notify(req, p.who, { title: `💬 ${c.name} (${c.couple}) a commenté`, body: short(text, 140), tag: "feedc-" + p.id, url: "/?tab=social&sub=feed" })).catch(() => {});
+    return SOCIAL["feed.get"](b);
+  },
+  "feed.delete": async (b) => {
+    const [raw] = await db([["HGET", G.feed, String(b.id)]]);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (p.sp !== ctx().id) fail(403, "Tu ne peux supprimer que vos publications.");
+      await db([["HDEL", G.feed, p.id], ["DEL", G.feedlikes(p.id)], ["DEL", G.feedc(p.id)], ["DEL", G.feedrep(p.id)]]);
+    }
+    return SOCIAL["feed.get"](b);
+  },
+  "feed.cdelete": async (b) => {
+    const [raw] = await db([["HGET", G.feedc(String(b.post)), String(b.id)]]);
+    if (raw && JSON.parse(raw).sp === ctx().id) await db([["HDEL", G.feedc(String(b.post)), String(b.id)]]);
+    return SOCIAL["feed.get"](b);
+  },
+  "feed.report": async (b) => {
+    await db([["HSET", G.feedrep(String(b.id)), ctx().id, Date.now()]]);
+    return { reported: true };
   },
 };
 
@@ -966,6 +1145,13 @@ async function handleSpace(req, res, q, b0) {
     const b = b0;
     const who = b.who;
     const day = isDay(b.day) ? b.day : new Date().toISOString().slice(0, 10);
+
+    // Couples amis et fil commun : seulement le code de l'espace, pas toutes ses données
+    if (req.method === "POST" && SOCIAL[b.action]) {
+      await checkCode(req, code);
+      if (!(who in ctx().names)) fail(400, "Choisis d'abord qui tu es.");
+      return send(res, 200, { ok: true, ...((await SOCIAL[b.action](b, req)) || {}) });
+    }
 
     // Première ouverture de l'espace principal : on choisit le code secret
     if (req.method === "POST" && b.action === "setup") {
