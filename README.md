@@ -1,6 +1,6 @@
 # Nous Deux 💕
 
-L'appli privée de **Dali & Rahma** (ambiance claire « lavande & pêche »), ensemble depuis le 15 septembre 2025, à distance.
+L'appli privée de **Dali & Rahma** (thème « rouge passion » : ivoire rosé, rouge profond, bordeaux), ensemble depuis le 15 septembre 2025, à distance.
 
 Fonctionnalités inspirées des applis pour couples à distance (Paired, Together, Long Goodbye, Letterbox…).
 
