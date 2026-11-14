@@ -26,6 +26,11 @@
  *   nd:snaps         hash   id -> snap (photo du jour, visible 24 h)
  *   nd:snap:ID       photo du snap (expire après 24 h)   nd:snapt:ID  miniature
  *   nd:voice:ID      message vocal (« type-mime\nbase64 ») envoyé dans les petits mots
+ *   nd:sched         hash   id -> surprise programmée (devient un petit mot à l'heure choisie)
+ *   nd:story         hash   id -> moment de « Notre histoire »     nd:storyimg:ID  sa photo
+ *   nd:songs         hash   id -> chanson de « Notre playlist »
+ *   nd:sleep         hash   personne -> {s: "sleep"|"awake", t}
+ *   nd:act           hash   "personne:AAAA-MM-JJ" -> 1 (a envoyé quelque chose ce jour-là, pour la série)
  *   nd:avatar:ID     photo de profil (affichée sur la carte) ; l'id actuel est dans nd:cfg « avatar_personne »
  *   nd:qa            hash   "AAAA-MM-JJ:personne" -> réponse à la question du jour
  *   nd:fail:IP       compteur d'essais de code ratés (15 min)
@@ -107,7 +112,7 @@ const K = {
   auth: "nd:auth", vapid: "nd:vapid", subs: "nd:subs", cfg: "nd:cfg", tz: "nd:tz",
   notes: "nd:notes", moods: "nd:moods", dates: "nd:dates", mem: "nd:mem", mnotes: "nd:mnotes",
   photo: id => `nd:photo:${id}`, thumb: id => `nd:thumb:${id}`,
-  doodle: id => `nd:doodle:${id}`, snaps: "nd:snaps", snap: id => `nd:snap:${id}`, snapt: id => `nd:snapt:${id}`, avatar: id => `nd:avatar:${id}`, voice: id => `nd:voice:${id}`, letters: "nd:letters", jar: "nd:jar", thinks: "nd:thinks", lastthink: "nd:lastthink", loc: "nd:loc",
+  doodle: id => `nd:doodle:${id}`, snaps: "nd:snaps", snap: id => `nd:snap:${id}`, snapt: id => `nd:snapt:${id}`, avatar: id => `nd:avatar:${id}`, voice: id => `nd:voice:${id}`, sched: "nd:sched", story: "nd:story", storyimg: id => `nd:storyimg:${id}`, songs: "nd:songs", sleep: "nd:sleep", act: "nd:act", letters: "nd:letters", jar: "nd:jar", thinks: "nd:thinks", lastthink: "nd:lastthink", loc: "nd:loc",
   qa: "nd:qa", fail: ip => `nd:fail:${ip}`,
 };
 const newId = () => Date.now().toString(36) + crypto.randomBytes(4).toString("hex");
@@ -164,13 +169,40 @@ async function freshSnaps(list) {
   return list.filter(x => x.t >= limit);
 }
 
+/* ================= Série de jours ================= */
+function streakOf(act, day) {
+  const both = dd => act[`dali:${dd}`] && act[`rahma:${dd}`];
+  const prev = dd => new Date(Date.parse(dd) - 86400000).toISOString().slice(0, 10);
+  let dd = both(day) ? day : prev(day), n = 0;
+  while (both(dd) && n < 5000) { n++; dd = prev(dd); }
+  return { days: n, today: !!both(day), meToday: !!act[`dali:${day}`] || !!act[`rahma:${day}`] };
+}
+
+/* ================= Surprises programmées ================= */
+// Transforme en petits mots les surprises dont l'heure est arrivée (appelé à chaque requête et par la tâche planifiée)
+async function deliverDue(req) {
+  const [raw] = await db([["HGETALL", K.sched]]);
+  const due = parseHash(raw).filter(x => !x.delivered && x.at <= Date.now());
+  let n = 0;
+  for (const x of due) {
+    const [ok] = await db([["SET", `nd:l:sched:${x.id}`, "1", "EX", 3600, "NX"]]);
+    if (ok !== "OK") continue;
+    const note = { id: newId(), from: x.from, text: x.text, img: false, t: x.at, read: false, heart: false, surprise: true };
+    await db([["HSET", K.notes, note.id, JSON.stringify(note)], ["HSET", K.sched, x.id, JSON.stringify({ ...x, delivered: Date.now() })]]);
+    await notify(req, otherOf(x.from), { title: `🎁 Une surprise de ${PEOPLE[x.from]}`, body: short(x.text, 160), tag: "surprise-" + x.id, url: "/?tab=notes" });
+    n++;
+  }
+  return n;
+}
+
 /* ================= Lecture de toutes les données ================= */
 async function loadAll(req, code) {
-  const [auth, fails, cfg, tz, notes, moods, dates, mem, mnotes, qa, subs, letters, jar, thinks, lastthink, loc, snaps] = await db([
+  const [auth, fails, cfg, tz, notes, moods, dates, mem, mnotes, qa, subs, letters, jar, thinks, lastthink, loc, snaps, sched, story, songs, sleep, act] = await db([
     ["GET", K.auth], ["GET", K.fail(ipOf(req))],
     ["HGETALL", K.cfg], ["HGETALL", K.tz], ["HGETALL", K.notes], ["HGETALL", K.moods], ["HGETALL", K.dates],
     ["HGETALL", K.mem], ["HGETALL", K.mnotes], ["HGETALL", K.qa], ["HGETALL", K.subs],
     ["HGETALL", K.letters], ["HGETALL", K.jar], ["HGETALL", K.thinks], ["HGETALL", K.lastthink], ["HGETALL", K.loc], ["HGETALL", K.snaps],
+    ["HGETALL", K.sched], ["HGETALL", K.story], ["HGETALL", K.songs], ["HGETALL", K.sleep], ["HGETALL", K.act],
   ]);
   if (!auth) fail(409, "SETUP");
   if (Number(fails) >= 10) fail(429, "Trop d'essais ratés. Réessaie dans 15 minutes.");
@@ -187,6 +219,7 @@ async function loadAll(req, code) {
     subs: Object.keys(hobj(subs)),
     letters: parseHash(letters), jar: parseHash(jar), thinks: hobj(thinks), lastthink: hobj(lastthink), loc: hobj(loc),
     snaps: await freshSnaps(parseHash(snaps)),
+    sched: parseHash(sched), story: parseHash(story), songs: parseHash(songs), sleep: hobj(sleep), act: hobj(act),
   };
 }
 
@@ -239,6 +272,12 @@ function view(d, who, day) {
       total: Object.entries(d.thinks).reduce((a, [k, v]) => a + Number(v || 0), 0),
     },
     locs,
+    surprises: d.sched.filter(x => x.from === who && !x.delivered).sort((a, b) => a.at - b.at), // seulement les miennes, en attente
+    story: d.story.sort((a, b) => a.date.localeCompare(b.date) || a.t - b.t).map(x => (x.photo ? { ...x, tk: photoToken(d.authHash, x.id) } : x)),
+    songs: d.songs.sort((a, b) => b.t - a.t),
+    sleep: Object.fromEntries(Object.keys(PEOPLE).filter(p => d.sleep[p]).map(p => [p, JSON.parse(d.sleep[p])])),
+    streak: streakOf(d.act, day),
+    movie: (() => { try { const m = JSON.parse(d.cfg.movie || "null"); return m && m.at > Date.now() - 3 * 3600000 ? m : null; } catch (e) { return null; } })(),
     avatars: Object.fromEntries(Object.keys(PEOPLE).filter(p => d.cfg["avatar_" + p]).map(p => [p, { id: d.cfg["avatar_" + p], tk: photoToken(d.authHash, d.cfg["avatar_" + p]) }])),
     snaps: d.snaps.sort((a, b) => b.t - a.t).map(x => ({ ...x, tk: photoToken(d.authHash, x.id) })),
     moods,
@@ -471,6 +510,67 @@ const ACTIONS = {
     if (x && x.from === b.who) await db([["HDEL", K.snaps, x.id], ["DEL", K.snap(x.id)], ["DEL", K.snapt(x.id)]]);
   },
 
+  // 🎁 Surprise programmée
+  "sched.add": async (b) => {
+    const text = longTxt(b.text, 1000), at = Number(b.at);
+    if (!text) fail(400, "Écris ta surprise.");
+    if (!(at > Date.now() + 30000 && at < Date.now() + 400 * 86400000)) fail(400, "Choisis une date et une heure dans le futur.");
+    const x = { id: newId(), from: b.who, text, at, delivered: null, t: Date.now() };
+    await db([["HSET", K.sched, x.id, JSON.stringify(x)]]);
+  },
+  "sched.del": async (b, d) => {
+    const x = d.sched.find(y => y.id === b.id);
+    if (x && x.from === b.who && !x.delivered) await db([["HDEL", K.sched, x.id]]);
+  },
+
+  // 📖 Notre histoire
+  "story.add": async (b, d, req) => {
+    const title = txt(b.title, 80);
+    if (!title || !isDay(b.date)) fail(400, "Donne un titre et une date.");
+    const img = b.photo ? /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.photo)) : null;
+    if (b.photo && (!img || img[1].length > MAX_PHOTO)) fail(400, "Photo invalide.");
+    const x = { id: newId(), by: b.who, date: b.date, title, text: longTxt(b.text, 1500), emoji: txt(b.emoji, 8) || "💕", photo: !!img, t: Date.now() };
+    if (img) await db([["SET", K.storyimg(x.id), img[1]]]);
+    await db([["HSET", K.story, x.id, JSON.stringify(x)]]);
+    return notify(req, otherOf(b.who), { title: `📖 ${PEOPLE[b.who]} a ajouté un moment à votre histoire`, body: `${x.emoji} ${title}`, tag: "story-" + x.id, url: "/?tab=memories&sub=story" });
+  },
+  "story.del": async (b, d) => {
+    const x = d.story.find(y => y.id === b.id);
+    if (x) await db([["HDEL", K.story, x.id], ["DEL", K.storyimg(x.id)]]);
+  },
+
+  // 🎵 Notre playlist
+  "song.add": async (b, d, req) => {
+    const title = txt(b.title, 120);
+    if (!title) fail(400, "Écris le titre de la chanson.");
+    const url = /^https:\/\/[^\s]{4,500}$/.test(String(b.url || "").trim()) ? String(b.url).trim() : "";
+    const x = { id: newId(), by: b.who, title, url, note: longTxt(b.note, 300), t: Date.now() };
+    await db([["HSET", K.songs, x.id, JSON.stringify(x)]]);
+    return notify(req, otherOf(b.who), { title: `🎵 ${PEOPLE[b.who]} a ajouté une chanson pour toi`, body: x.note ? `${title} — ${short(x.note, 100)}` : title, tag: "song-" + x.id, url: "/?tab=memories&sub=songs" });
+  },
+  "song.del": async (b, d) => {
+    const x = d.songs.find(y => y.id === b.id);
+    if (x && x.by === b.who) await db([["HDEL", K.songs, x.id]]);
+  },
+
+  // 🌙 Bonne nuit / ☀️ Bonjour
+  "sleep.set": async (b, d, req) => {
+    const st = b.state === "sleep" ? "sleep" : "awake";
+    await db([["HSET", K.sleep, b.who, JSON.stringify({ s: st, t: Date.now() })]]);
+    return notify(req, otherOf(b.who), st === "sleep"
+      ? { title: `🌙 ${PEOPLE[b.who]} va dormir`, body: "Bonne nuit mon amour, fais de beaux rêves 💫", tag: "sleep", url: "/" }
+      : { title: `☀️ ${PEOPLE[b.who]} est réveillé·e`, body: "Bonjour mon amour, bonne journée 💕", tag: "sleep", url: "/" });
+  },
+
+  // 🎬 Soirée film : compte à rebours commun
+  "movie.start": async (b, d, req) => {
+    const delay = [10, 30, 60].includes(Number(b.delay)) ? Number(b.delay) : 30;
+    const m = { title: txt(b.title, 80), at: Date.now() + delay * 1000, by: b.who };
+    await db([["HSET", K.cfg, "movie", JSON.stringify(m)]]);
+    return notify(req, otherOf(b.who), { title: `🎬 Soirée film avec ${PEOPLE[b.who]} !`, body: `${m.title ? "« " + m.title + " » — " : ""}on lance dans ${delay} s, ouvre vite l'appli 🍿`, tag: "movie", url: "/?movie=1" });
+  },
+  "movie.stop": async (b) => { await db([["HDEL", K.cfg, "movie"]]); },
+
   "push.sub": async (b) => {
     const s = b.sub || {};
     if (typeof s.endpoint !== "string" || !/^https:\/\//.test(s.endpoint) || !s.keys || !s.keys.p256dh || !s.keys.auth) fail(400, "Abonnement invalide.");
@@ -487,11 +587,17 @@ const ACTIONS = {
   "push.test": async (b, d, req) => notify(req, b.who, { title: "🔔 Notifications activées", body: `Tu seras prévenu·e quand ${PEOPLE[otherOf(b.who)]} t'écrit 💕`, tag: "test", url: "/" }),
 };
 
+// actions qui comptent pour la série de jours
+const ACTIVE = new Set(["note.add", "mood.set", "think", "snap.add", "qa.answer", "letter.add", "jar.add", "mem.add", "mem.note", "sleep.set"]);
+
 /* ================= HTTP ================= */
 module.exports = async function handler(req, res) {
   try {
     const q = Object.fromEntries(new URL(req.url, "http://localhost").searchParams);
     const code = req.headers["x-code"];
+
+    // Tâche planifiée : livre les surprises arrivées à échéance (ne renvoie aucune donnée)
+    if (req.method === "GET" && q.tick) return send(res, 200, { delivered: await deliverDue(req) });
 
     // L'appli a-t-elle déjà un code secret ? (+ clé publique pour les notifications)
     if (req.method === "GET" && q.status) {
@@ -504,7 +610,7 @@ module.exports = async function handler(req, res) {
     if (req.method === "GET" && q.photo) {
       const id = String(q.photo);
       if (!/^[a-z0-9]{8,40}$/.test(id)) fail(400, "Photo invalide.");
-      const key = { full: K.photo(id), doodle: K.doodle(id), snap: K.snap(id), snapt: K.snapt(id), avatar: K.avatar(id), voice: K.voice(id) }[q.s] || K.thumb(id);
+      const key = { full: K.photo(id), doodle: K.doodle(id), snap: K.snap(id), snapt: K.snapt(id), avatar: K.avatar(id), voice: K.voice(id), story: K.storyimg(id) }[q.s] || K.thumb(id);
       const [auth, data] = await db([["GET", K.auth], ["GET", key]]);
       if (!auth || q.k !== photoToken(JSON.parse(auth).hash, id)) fail(403, "Accès refusé.");
       if (!data) fail(404, "Photo introuvable.");
@@ -545,10 +651,12 @@ module.exports = async function handler(req, res) {
     if (tz && /^[A-Za-z_]+(\/[A-Za-z0-9_+-]+)*$/.test(tz) && d.tz[who] !== tz) { await db([["HSET", K.tz, who, tz]]); d.tz[who] = tz; }
 
     let extra = {};
+    if (await deliverDue(req)) d = await loadAll(req, code);
     if (req.method === "POST") {
       const fn = ACTIONS[b.action];
       if (!fn) fail(400, "Action inconnue.");
       extra = (await fn(b, d, req)) || {};
+      if (ACTIVE.has(b.action)) await db([["HSET", K.act, `${who}:${day}`, "1"]]);
       d = await loadAll(req, code);
     }
     return send(res, 200, { ...view(d, who, day), pushed: extra.sent, drawn: extra.drawn });

@@ -20,6 +20,12 @@ Fonctionnalités inspirées des applis pour couples à distance (Paired, Togethe
 - 📸 **Souvenirs** : photos façon polaroid, avec une légende et des petits mots écrits dessus.
 - 📅 **Dates importantes** avec compte à rebours.
 - ❓ **Question du jour** : on voit la réponse de l'autre seulement après avoir répondu.
+- 🎁 **Surprises programmées** : un mot qui arrive à la date et l'heure choisies (livré dès que l'un de vous ouvre l'appli après l'heure prévue, ou par un appel à `/api/nous?tick=1`).
+- 📖 **Notre histoire** : frise de vos grands moments, avec photos.
+- 🎵 **Notre playlist** : les chansons qui vous font penser l'un à l'autre.
+- 🌙 **Bonne nuit / ☀️ Bonjour** : on voit quand l'autre dort.
+- 🔥 **Série** de jours d'affilée où vous vous êtes envoyé quelque chose.
+- 🎬 **Soirée film** : compte à rebours synchronisé pour lancer le film en même temps.
 - 🔔 **Notifications push** (Android, et iPhone une fois l'appli ajoutée à l'écran d'accueil, iOS 16.4+).
 
 ## Structure

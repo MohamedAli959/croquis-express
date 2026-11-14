@@ -280,6 +280,28 @@
   .level{width:100%;height:36px;display:flex;align-items:center;justify-content:center;gap:3px}
   .level i{width:4px;border-radius:2px;background:var(--rose2);transition:height .08s}
 
+  /* histoire */
+  .timeline{position:relative;margin:18px 0 0 10px;padding-left:26px}
+  .timeline::before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:linear-gradient(var(--rose),var(--peach),var(--gold));border-radius:2px}
+  .tl{position:relative;margin-bottom:22px}
+  .tl .dot{position:absolute;left:-32px;top:0;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:16px;background:var(--night2);border:2px solid var(--rose2)}
+  .tl .when{font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--rose2)}
+  .tl h3{margin:2px 0 4px}
+  .tl img{width:100%;border-radius:14px;margin-top:8px;display:block}
+  .tl .ago{font-family:var(--serif);font-style:italic;color:var(--gold);font-size:15px}
+  /* playlist */
+  .song{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--stroke)}
+  .song:last-child{border-bottom:0}
+  .song .disc{width:46px;height:46px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:20px;background:radial-gradient(circle,#2a1342 18%,#111 20%,#333 60%,#111);animation:spin 6s linear infinite;animation-play-state:paused}
+  .song:hover .disc{animation-play-state:running}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  /* film */
+  .moviefull{position:fixed;inset:0;z-index:45;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;
+             background:radial-gradient(circle at 50% 40%,#3a1748,#0c0718 70%);animation:fade .2s}
+  .moviefull .cnt{font-family:var(--serif);font-size:140px;font-weight:700;line-height:1;color:var(--gold);text-shadow:0 0 40px rgba(245,208,138,.5)}
+  .moviefull .cnt.go{font-size:72px;color:#fff}
+  .streakb{margin-left:6px;font-size:12px;padding:1px 7px;border-radius:999px;background:rgba(245,208,138,.2);color:var(--gold)}
+
   /* fenêtres, toasts */
   .modal{position:fixed;inset:0;background:rgba(8,4,18,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:20;animation:fade .2s}
   .modal .sheet{width:100%;max-width:560px;max-height:94dvh;overflow:auto;background:linear-gradient(170deg,#24123c,#35173f);border:1px solid var(--stroke);border-bottom:0;
@@ -360,7 +382,8 @@ const ICONS={
 
 /* ================= État ================= */
 let CODE=LS.get("nd-code"), WHO=LS.get("nd-who"), D=null, PEOPLE={dali:"Dali",rahma:"Rahma"}, VAPID=null;
-let tab=LS.get("nd-tab")||"home", pendingRender=false, openMem=null;
+let tab=LS.get("nd-tab")||"home", pendingRender=false, openMem=null, CLOCK=0, memSub=LS.get("nd-memsub")||"photos";
+const sNow=()=>Date.now()+CLOCK;
 if(!["home","notes","memories","letters","question"].includes(tab)) tab="home";
 const other=()=>WHO==="dali"?"rahma":"dali";
 const nm=p=>PEOPLE[p]||p;
@@ -374,6 +397,7 @@ async function api(method, body){
   const r=await fetch(url,opts);
   let j=null; try{ j=await r.json(); }catch(e){}
   if(!r.ok){ const err=new Error((j&&j.error)||(r.status===413?"Photo trop lourde":"Erreur ("+r.status+")")); err.status=r.status; throw err; }
+  if(j && j.now) CLOCK=j.now-Date.now();
   return j;
 }
 async function refresh(force){
@@ -505,10 +529,12 @@ async function start(){
   try{ D=await api("GET"); }catch(e){ if(e.status===401) return logout(e.message); toast(e.message); return; }
   shell(); await checkPush(); render(true); autoLocation();
   const p=new URLSearchParams(location.search);
-  if(p.get("tab")||p.get("snap")) openDeepLink(new URL(location.href));
+  if(p.get("tab")||p.get("snap")||p.get("movie")) openDeepLink(new URL(location.href));
 }
 function openDeepLink(u){
-  const t=u.searchParams.get("tab"), m=u.searchParams.get("m"), sn=u.searchParams.get("snap");
+  const t=u.searchParams.get("tab"), m=u.searchParams.get("m"), sn=u.searchParams.get("snap"), sb=u.searchParams.get("sub");
+  if(sb){ memSub=sb; LS.set("nd-memsub",sb); }
+  if(u.searchParams.get("movie")){ history.replaceState(null,"","/"); refresh(true).then(()=>checkMovie(true)); return; }
   history.replaceState(null,"","/");
   if(t && ["home","notes","memories","letters","question"].includes(t)){ tab=t; LS.set("nd-tab",tab); }
   render(true); window.scrollTo(0,0);
@@ -542,6 +568,7 @@ function render(force){
     if(b.dataset.tab==="home" && sn && tab!=="home") b.insertAdjacentHTML("beforeend",`<span class="badge">${sn}</span>`);
   });
   checkIncomingThink();
+  checkMovie();
   const y=window.scrollY;
   ({home:homeTab,notes:notesTab,memories:memoriesTab,letters:lettersTab,question:questionTab})[tab]();
   if(!force) window.scrollTo(0,y);
@@ -580,6 +607,8 @@ function homeTab(){
   const totalM=T.y*12+T.m, isMonthDay=T.d===0 && totalM>0;
   const nextM=new Date(s.getFullYear(),s.getMonth()+totalM+1,s.getDate());
   const theirMood=D.moods[o], myMood=D.moods[WHO];
+  const sl=p=>{ const x=D.sleep&&D.sleep[p]; return x&&x.s==="sleep"&&Date.now()-x.t<16*3600000?x:null; };
+  const theirSleep=sl(o), mySleep=sl(WHO);
   const lastIn=D.notes.find(n=>n.from!==WHO);
   const lastMem=D.memories[0];
   const theirTz=D.tz && D.tz[o];
@@ -619,6 +648,7 @@ function homeTab(){
       <div class="num">${T.days}</div>
       <div class="unit">jours d'amour</div>
       <div class="ymd">${ymdTxt} · depuis le ${fmtDay(s)}</div>
+      ${D.streak&&D.streak.days?`<div class="pillnote" style="margin-right:6px">🔥 <b>${D.streak.days}</b> jour${D.streak.days>1?"s":""} d'affilée${streakBadge(D.streak.days)}</div>`:""}
       <div class="pillnote">${isMonthDay?`🎉 Joyeux ${monthsLabel(totalM)} !`:`💫 ${monthsLabel(totalM+1)} ensemble ${daysBetween(t,nextM)===1?"demain":"le "+fmtDay(nextM)}`}</div>
     </section>
 
@@ -653,10 +683,18 @@ function homeTab(){
           <div class="l">${esc(theirMood.label||"Humeur")}</div>
           ${theirMood.text?`<div class="tx">« ${esc(theirMood.text)} »</div>`:""}<div class="faint">${ago(theirMood.t)}</div></div></div>`
         :`<p style="margin:0">${esc(nm(o))} n'a pas encore partagé d'humeur.</p>`}
+      ${theirSleep?`<div class="pillnote" style="margin:12px 0 0">😴 ${esc(nm(o))} dort depuis ${hhmm(theirSleep.t)}</div>`:""}
       <div class="moodmine"><span class="e">${myMood?esc(myMood.emoji):"🤍"}</span>
         <div style="flex:1;min-width:0"><b>Toi</b><div class="faint">${myMood?esc(myMood.label||"")+" · "+ago(myMood.t):"Aucune humeur partagée"}</div></div>
         <button class="btn small" id="moodbtn">Envoyer</button></div>
+      <div class="row" style="margin-top:12px">${mySleep
+        ?`<button class="btn ghost grow" id="wake">☀️ Je suis réveillé·e</button>`
+        :`<button class="btn ghost grow" id="gosleep">🌙 Je vais dormir</button>`}</div>
     </div>
+
+    <div class="card"><div class="banner"><div class="ic">🎬</div><div style="flex:1"><b>Soirée film à distance</b>
+      <p style="margin:2px 0 0">Un compte à rebours sur vos deux téléphones pour appuyer sur Play en même temps.</p></div></div>
+      <button class="btn ghost" id="movie" style="margin-top:12px">${D.movie&&D.movie.at>sNow()?"Compte à rebours en cours…":"Lancer un film ensemble 🍿"}</button></div>
 
     ${pushBanner}
 
@@ -695,6 +733,9 @@ function homeTab(){
   mountMap();
   fillWeather();
   $("#moodbtn").onclick=moodPicker;
+  if($("#gosleep")) $("#gosleep").onclick=async e=>{ const r=await act("sleep.set",{state:"sleep"},e.target); if(r) toast(`Bonne nuit 🌙 ${nm(other())} est prévenu·e`); };
+  if($("#wake")) $("#wake").onclick=async e=>{ const r=await act("sleep.set",{state:"awake"},e.target); if(r){ hearts(6); toast(`Bonjour ☀️ ${nm(other())} est prévenu·e`); } };
+  $("#movie").onclick=()=>{ if(D.movie&&D.movie.at>sNow()) checkMovie(true); else movieSheet(); };
   if($("#pushon")) $("#pushon").onclick=e=>enablePush(e.currentTarget);
   $("#gonotes").onclick=()=>{ tab="notes"; LS.set("nd-tab",tab); render(true); window.scrollTo(0,0); };
   if(lastMem){ $("#lastmem").onclick=()=>memoryView(lastMem.id); $("#gomem").onclick=()=>{ tab="memories"; LS.set("nd-tab",tab); render(true); window.scrollTo(0,0); }; }
@@ -744,20 +785,25 @@ function notesTab(){
     let sep=""; if(dk!==lastDay){ lastDay=dk; const k=daysBetween(parseDay(dk),todayDate()); sep=`<div class="daysep">${k===0?"Aujourd'hui":k===1?"Hier":DAYS[d.getDay()]+" "+fmtDay(d)}</div>`; }
     return sep+`<div class="bubble ${mine?"me":"them"}">
       ${n.img?`<img class="doodle" src="${API}?photo=${n.id}&k=${n.tk}&s=doodle" alt="Dessin" loading="lazy">`:""}${n.voice?voiceHTML(n):""}${n.text?`<div class="txt">${esc(n.text)}</div>`:""}
-      <div class="meta"><span>${hhmm(n.t)} ${!mine&&!n.read?'<span class="new">nouveau</span>':""}${mine?(n.read?" · vu":""):""}</span>
+      <div class="meta"><span>${n.surprise?"🎁 Surprise · ":""}${hhmm(n.t)} ${!mine&&!n.read?'<span class="new">nouveau</span>':""}${mine?(n.read?" · vu":""):""}</span>
         ${mine?`<button class="x" data-delnote="${n.id}" aria-label="Supprimer" style="font-size:16px">×</button>`:`<button class="hb ${n.heart?"on":""}" data-heart="${n.id}" aria-label="J'adore">❤️</button>`}</div>
       ${mine&&n.heart?`<span class="hs">❤️</span>`:""}
     </div>`;
   }).join("");
   $("#page").innerHTML=`
+    ${D.surprises&&D.surprises.length?`<div class="card" style="margin-top:6px"><div class="eyebrow">🎁 Tes surprises programmées</div>
+      ${D.surprises.map(x=>`<div class="date"><div class="d"><b>${esc(x.text.length>60?x.text.slice(0,59)+"…":x.text)}</b><div class="faint">arrivera ${whenAt(x.at)}</div></div>
+        <button class="x" data-delsched="${x.id}" aria-label="Annuler">×</button></div>`).join("")}</div>`:""}
     <h2 style="margin:10px 0 2px">Petits mots</h2><p style="margin:0 0 6px">Pour ${esc(nm(other()))}, avec une notification sur son téléphone.</p>
     ${D.notes.length?list:`<p class="center" style="margin:40px 0;font-family:var(--serif);font-style:italic;font-size:22px">Votre boîte à mots doux est vide… pour l'instant 💌</p>`}
     <div class="card" style="margin-top:18px">
       <textarea id="nt" maxlength="1000" placeholder="Écris-lui quelque chose de doux…"></textarea>
-      <div class="row" style="margin-top:12px"><button class="btn ghost" id="mic" style="width:auto;flex:none" aria-label="Message vocal">🎤</button><button class="btn ghost" id="draw" style="width:auto;flex:none" aria-label="Dessiner">🎨</button><button class="btn grow" id="send">Envoyer à ${esc(nm(other()))}</button></div>
+      <div class="row" style="margin-top:12px"><button class="btn ghost" id="mic" style="width:auto;flex:none" aria-label="Message vocal">🎤</button><button class="btn ghost" id="draw" style="width:auto;flex:none" aria-label="Dessiner">🎨</button><button class="btn ghost" id="surp" style="width:auto;flex:none" aria-label="Surprise programmée">🎁</button><button class="btn grow" id="send">Envoyer à ${esc(nm(other()))}</button></div>
     </div>`;
   $("#draw").onclick=doodleSheet;
   $("#mic").onclick=voiceSheet;
+  $("#surp").onclick=surpriseSheet;
+  $$("[data-delsched]").forEach(b=>b.onclick=()=>{ if(confirm("Annuler cette surprise ?")) act("sched.del",{id:b.dataset.delsched}); });
   $$("[data-vplay]").forEach(b=>b.onclick=()=>playVoice(b.dataset.vplay));
   $$("[data-vseek]").forEach(w=>w.onclick=e=>{ const r=w.getBoundingClientRect(); playVoice(w.dataset.vseek,(e.clientX-r.left)/r.width); });
   $("#send").onclick=async e=>{ const t=$("#nt").value.trim(); if(!t) return toast("Écris un petit mot"); const r=await act("note.add",{text:t},e.target); if(r){ hearts(8); toast(sentMsg(r)); window.scrollTo(0,document.body.scrollHeight); } };
@@ -767,8 +813,17 @@ function notesTab(){
 
 /* ================= Souvenirs ================= */
 function memoriesTab(){
+  if(!["photos","story","songs"].includes(memSub)) memSub="photos";
   $("#page").innerHTML=`
-    <h2 style="margin:10px 0 2px">Nos souvenirs</h2><p style="margin:0">Vos photos, et les petits mots que vous écrivez dessus.</p>
+    <h2 style="margin:10px 0 10px">Nos souvenirs</h2>
+    <div class="seg" id="msub"><button data-v="photos">📸 Photos</button><button data-v="story">📖 Histoire</button><button data-v="songs">🎵 Playlist</button></div>
+    <div id="sub"></div>`;
+  $$("#msub button").forEach(b=>{ b.classList.toggle("on",b.dataset.v===memSub); b.onclick=()=>{ memSub=b.dataset.v; LS.set("nd-memsub",memSub); render(true); }; });
+  ({photos:photosPane,story:storyPane,songs:songsPane})[memSub]();
+}
+function photosPane(){
+  $("#sub").innerHTML=`
+    <p style="margin:12px 0 0">Vos photos, et les petits mots que vous écrivez dessus.</p>
     <div class="polas">
       <button class="addpola" id="addmem"><span>＋</span>Ajouter une photo</button>
       ${D.memories.map(m=>`<button class="pola" data-mem="${m.id}">
@@ -1174,6 +1229,146 @@ function doodleSheet(){
     const o=out.getContext("2d"); o.drawImage(cv,0,0,640,640);
     const r=await act("note.add",{text:m.querySelector("#dtx").value,doodle:out.toDataURL("image/jpeg",.85)},e.target);
     if(r){ m.remove(); hearts(8); toast(sentMsg(r)); tab="notes"; LS.set("nd-tab",tab); render(true); }
+  };
+}
+
+/* ================= Série ================= */
+function streakBadge(n){ const b=[[365,"👑 1 an"],[100,"💯"],[30,"🌟 1 mois"],[7,"⭐ 1 semaine"]].find(([k])=>n>=k); return b?`<span class="streakb">${b[1]}</span>`:""; }
+
+/* ================= Surprises programmées ================= */
+function whenAt(t){
+  const d=new Date(t), k=daysBetween(todayDate(),new Date(d.getFullYear(),d.getMonth(),d.getDate()));
+  return (k===0?"aujourd'hui":k===1?"demain":"le "+DAYS[d.getDay()]+" "+fmtDay(d))+" à "+hhmm(t);
+}
+const localInput=d=>`${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function surpriseSheet(){
+  const o=esc(nm(other())), now=new Date();
+  const presets=[];
+  const tm=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,8,0); presets.push(["☀️ Demain à 8 h",tm]);
+  const mid=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0); presets.push(["🌙 À minuit",mid]);
+  if(D.reunion){ const r=parseDay(D.reunion); r.setHours(9,0); if(r>now) presets.push(["✈️ Jour des retrouvailles",r]); }
+  const m=sheet(`<h2>🎁 Une surprise pour ${o}</h2><p>Ton mot arrivera tout seul à l'heure choisie, avec une notification. Parfait pour minuit le jour de son anniversaire 🎂</p>
+    <div class="chipsel" style="margin-top:12px">${presets.map(([l,d],i)=>`<button data-p="${i}">${l}</button>`).join("")}</div>
+    <input type="datetime-local" id="sat" min="${localInput(new Date(Date.now()+60000))}" value="${localInput(tm)}" style="margin-top:10px;width:100%;padding:13px 14px;border-radius:14px;border:1px solid var(--stroke);background:rgba(0,0,0,.22);color:var(--text);color-scheme:dark;font-size:16px">
+    <textarea id="stx" maxlength="1000" placeholder="Joyeux anniversaire mon amour…" style="margin-top:12px"></textarea>
+    <button class="btn" id="ssend" style="margin-top:12px">Programmer la surprise</button>`);
+  m.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{ m.querySelector("#sat").value=localInput(presets[+b.dataset.p][1]); m.querySelectorAll("[data-p]").forEach(x=>x.classList.toggle("on",x===b)); });
+  m.querySelector("#ssend").onclick=async e=>{
+    const v=m.querySelector("#sat").value, t=m.querySelector("#stx").value.trim();
+    if(!v) return toast("Choisis la date et l'heure"); if(!t) return toast("Écris ta surprise");
+    const at=new Date(v).getTime();
+    if(at<Date.now()+60000) return toast("Choisis un moment dans le futur");
+    if(await act("sched.add",{text:t,at},e.target)){ m.remove(); hearts(6); toast(`Surprise programmée ${whenAt(at)} 🎁`); }
+  };
+}
+
+/* ================= Soirée film ================= */
+function movieSheet(){
+  let delay=30;
+  const m=sheet(`<h2>🎬 Soirée film</h2><p>Lancez le même film chacun de votre côté. Un compte à rebours apparaît sur vos deux téléphones : appuyez sur Play à « 0 » 🍿</p>
+    <input type="text" id="mtitle" maxlength="80" placeholder="Quel film ? (optionnel)" style="margin-top:12px">
+    <div class="faint" style="margin:12px 0 6px">${esc(nm(other()))} aura le temps d'ouvrir l'appli :</div>
+    <div class="seg" id="mdelay"><button data-v="10">10 s</button><button data-v="30" class="on">30 s</button><button data-v="60">1 min</button></div>
+    <button class="btn" id="mgo" style="margin-top:14px">Lancer le compte à rebours</button>`);
+  m.querySelectorAll("#mdelay button").forEach(b=>b.onclick=()=>{ delay=+b.dataset.v; m.querySelectorAll("#mdelay button").forEach(x=>x.classList.toggle("on",x===b)); });
+  m.querySelector("#mgo").onclick=async e=>{ const r=await act("movie.start",{title:m.querySelector("#mtitle").value,delay},e.target); if(r){ m.remove(); checkMovie(true); } };
+}
+let movieShown=null;
+function checkMovie(force){
+  const mv=D&&D.movie; if(!mv) return;
+  const left=mv.at-sNow();
+  if(left<-5000 || left>70000) return;
+  if(!force && movieShown===mv.at) return;
+  movieShown=mv.at;
+  if($(".moviefull")) return;
+  const box=document.createElement("div"); box.className="moviefull";
+  box.innerHTML=`<div class="eyebrow" style="justify-content:center">🎬 Soirée film${mv.title?" · "+esc(mv.title):""}</div>
+    <div class="cnt" id="mc">…</div><p id="mtx" style="color:var(--text)">Prêts ? Appuyez sur Play à zéro</p>
+    <button class="btn ghost small" id="mcancel" style="margin-top:20px">${mv.by===WHO?"Annuler":"Fermer"}</button>`;
+  document.body.appendChild(box);
+  let done=false;
+  const tick=()=>{
+    if(!box.isConnected) return;
+    const l=Math.ceil((mv.at-sNow())/1000), c=box.querySelector("#mc");
+    if(l>0){ c.textContent=l; c.classList.remove("go"); if(l<=3 && navigator.vibrate) navigator.vibrate(40); }
+    else if(!done){ done=true; c.textContent="▶ Play !"; c.classList.add("go"); box.querySelector("#mtx").textContent="Bon film mes amours 🍿💕"; if(navigator.vibrate) navigator.vibrate([200,80,200]); hearts(10); setTimeout(()=>box.remove(),5000); return; }
+    setTimeout(tick,250);
+  };
+  tick();
+  box.querySelector("#mcancel").onclick=()=>{ box.remove(); if(mv.by===WHO) act("movie.stop",{}); };
+}
+
+/* ================= Notre histoire ================= */
+const STORY_EMOJIS=["💕","💬","☕","💋","🌹","✈️","🏠","🎉","💍","📸","🌙","⭐"];
+function storyPane(){
+  const s0=parseDay(D.start);
+  const items=[{id:"_start",date:D.start,title:"Le début de nous deux",emoji:"💞",text:"",fixed:true},...D.story].sort((a,b)=>a.date.localeCompare(b.date));
+  $("#sub").innerHTML=`
+    <p style="margin:12px 0 0">Les grands moments de votre histoire, du premier jour à aujourd'hui.</p>
+    <button class="btn" id="addstory" style="margin-top:12px">＋ Ajouter un moment</button>
+    <div class="timeline">${items.map(x=>{ const d=parseDay(x.date), k=daysBetween(s0,d);
+      return `<div class="tl"><div class="dot">${esc(x.emoji)}</div>
+        <div class="when">${fmtDay(d)} ${d.getFullYear()===new Date().getFullYear()?d.getFullYear():""}</div>
+        <h3>${esc(x.title)}</h3>
+        ${x.fixed?`<div class="ago">Le jour où tout a commencé ✨</div>`:k>=0?`<div class="ago">${k===0?"Le tout premier jour":"Jour "+k+" de notre histoire"}</div>`:""}
+        ${x.text?`<p style="color:var(--text);margin:6px 0 0;white-space:pre-wrap">${esc(x.text)}</p>`:""}
+        ${x.photo?`<img src="${API}?photo=${x.id}&k=${x.tk}&s=story" alt="" loading="lazy">`:""}
+        ${x.fixed?"":`<button class="link" data-delstory="${x.id}" style="color:var(--faint);font-size:12px;margin-top:6px">Supprimer</button>`}
+      </div>`; }).join("")}
+      <div class="tl"><div class="dot">✨</div><div class="when">Aujourd'hui</div><h3>Et la suite s'écrit…</h3><div class="ago">${daysBetween(s0,todayDate())} jours ensemble</div></div>
+    </div>`;
+  $("#addstory").onclick=storySheet;
+  $$("[data-delstory]").forEach(b=>b.onclick=()=>{ if(confirm("Supprimer ce moment ?")) act("story.del",{id:b.dataset.delstory}); });
+}
+function storySheet(){
+  let emoji="💕", prepared=null;
+  const m=sheet(`<h2>📖 Un moment de votre histoire</h2>
+    <div class="chipsel" style="margin-top:12px">${STORY_EMOJIS.map(e=>`<button data-e="${e}" class="${e===emoji?"on":""}" style="font-size:20px;padding:6px 10px">${e}</button>`).join("")}</div>
+    <input type="text" id="stt" maxlength="80" placeholder="Ex : Notre premier rendez-vous" style="margin-top:10px">
+    <input type="date" id="std" value="${ymd(new Date())}" style="margin-top:10px">
+    <textarea id="stx" maxlength="1500" placeholder="Raconte ce moment…" style="margin-top:10px;min-height:80px"></textarea>
+    <input type="file" id="stf" accept="image/*" hidden>
+    <button class="btn ghost" id="stp" style="margin-top:10px">📷 Ajouter une photo (optionnel)</button>
+    <button class="btn" id="sts" style="margin-top:12px">Ajouter à notre histoire</button>`);
+  m.querySelectorAll("[data-e]").forEach(b=>b.onclick=()=>{ emoji=b.dataset.e; m.querySelectorAll("[data-e]").forEach(x=>x.classList.toggle("on",x===b)); });
+  m.querySelector("#stp").onclick=()=>m.querySelector("#stf").click();
+  m.querySelector("#stf").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ prepared=await preparePhoto(f); m.querySelector("#stp").innerHTML=`<img src="${prepared.thumb.data}" style="height:60px;border-radius:8px"> Changer la photo`; }catch(err){ toast(err.message); } };
+  m.querySelector("#sts").onclick=async e=>{
+    const title=m.querySelector("#stt").value.trim(), date=m.querySelector("#std").value;
+    if(!title) return toast("Donne un titre à ce moment"); if(!date) return toast("Choisis la date");
+    e.target.textContent="Envoi…";
+    const r=await act("story.add",{title,date,emoji,text:m.querySelector("#stx").value,photo:prepared?prepared.full.data:""},e.target);
+    if(r){ m.remove(); hearts(8); toast(sentMsg(r)); }
+  };
+}
+
+/* ================= Notre playlist ================= */
+function songsPane(){
+  $("#sub").innerHTML=`
+    <p style="margin:12px 0 0">Les chansons qui vous font penser l'un à l'autre.</p>
+    <button class="btn" id="addsong" style="margin-top:12px">＋ Ajouter une chanson</button>
+    <div class="card">${D.songs.length?D.songs.map(x=>`<div class="song"><div class="disc">🎵</div>
+      <div style="flex:1;min-width:0"><b style="display:block">${esc(x.title)}</b>
+        ${x.note?`<div style="font-family:var(--serif);font-style:italic;font-size:17px;color:var(--text);margin-top:2px">“${esc(x.note)}”</div>`:""}
+        <div class="faint">ajoutée par ${x.by===WHO?"toi":esc(nm(x.by))} · ${ago(x.t)}</div></div>
+      <div class="stack" style="gap:6px;align-items:flex-end">
+        <a class="btn small" href="${esc(x.url||"https://www.youtube.com/results?search_query="+encodeURIComponent(x.title))}" target="_blank" rel="noopener">▶</a>
+        ${x.by===WHO?`<button class="x" data-delsong="${x.id}" aria-label="Retirer">×</button>`:""}</div></div>`).join("")
+      :`<p class="center" style="margin:6px 0;font-family:var(--serif);font-style:italic;font-size:20px">Ajoutez votre première chanson 🎶</p>`}</div>`;
+  $("#addsong").onclick=songSheet;
+  $$("[data-delsong]").forEach(b=>b.onclick=()=>{ if(confirm("Retirer cette chanson ?")) act("song.del",{id:b.dataset.delsong}); });
+}
+function songSheet(){
+  const m=sheet(`<h2>🎵 Une chanson pour ${esc(nm(other()))}</h2>
+    <input type="text" id="sgt" maxlength="120" placeholder="Titre – Artiste" style="margin-top:12px">
+    <input type="text" id="sgu" maxlength="500" placeholder="Lien Spotify, YouTube, Deezer… (optionnel)" inputmode="url" style="margin-top:10px">
+    <textarea id="sgn" maxlength="300" placeholder="Pourquoi elle te fait penser à ${esc(nm(other()))} ?" style="margin-top:10px;min-height:70px"></textarea>
+    <button class="btn" id="sgs" style="margin-top:12px">Ajouter à notre playlist</button>`);
+  m.querySelector("#sgs").onclick=async e=>{
+    const title=m.querySelector("#sgt").value.trim(); if(!title) return toast("Écris le titre de la chanson");
+    let url=m.querySelector("#sgu").value.trim(); if(url && !/^https:\/\//.test(url)) url="https://"+url.replace(/^http:\/\//,"");
+    const r=await act("song.add",{title,url,note:m.querySelector("#sgn").value},e.target);
+    if(r){ m.remove(); hearts(6); toast(sentMsg(r)); }
   };
 }
 
