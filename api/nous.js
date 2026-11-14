@@ -17,7 +17,12 @@
  *   nd:mem           hash   id -> souvenir (photo + légende)
  *   nd:mnotes        hash   id -> petit mot écrit sur un souvenir
  *   nd:photo:ID      photo JPEG (base64)      nd:thumb:ID   miniature
- *   nd:exps          hash   id -> dépense
+ *   nd:letters       hash   id -> lettre « Ouvre quand… » / lettre datée
+ *   nd:jar           hash   id -> raison « Pourquoi je t'aime » (bocal)
+ *   nd:thinks        hash   "personne:AAAA-MM-JJ" -> nombre de « je pense à toi »
+ *   nd:lastthink     hash   personne -> horodatage de sa dernière pensée
+ *   nd:loc           hash   personne -> position approximative (pour la distance et la météo)
+ *   nd:doodle:ID     dessin JPEG (base64) envoyé dans les petits mots
  *   nd:qa            hash   "AAAA-MM-JJ:personne" -> réponse à la question du jour
  *   nd:fail:IP       compteur d'essais de code ratés (15 min)
  */
@@ -28,8 +33,7 @@ try { webpush = require("web-push"); } catch (e) { /* notifications désactivée
 
 const PEOPLE = { dali: "Dali", rahma: "Rahma" };
 const START = "2025-09-15";
-const CURRENCIES = ["€", "DT", "$", "£", "CHF", "MAD"];
-const MAX_PHOTO = 950000, MAX_THUMB = 200000; // tailles max en base64
+const MAX_PHOTO = 950000, MAX_THUMB = 200000, MAX_DOODLE = 400000; // tailles max en base64
 
 const QUESTIONS = [
   "Quel est ton souvenir préféré de nous deux ?",
@@ -99,7 +103,8 @@ const K = {
   auth: "nd:auth", vapid: "nd:vapid", subs: "nd:subs", cfg: "nd:cfg", tz: "nd:tz",
   notes: "nd:notes", moods: "nd:moods", dates: "nd:dates", mem: "nd:mem", mnotes: "nd:mnotes",
   photo: id => `nd:photo:${id}`, thumb: id => `nd:thumb:${id}`,
-  exps: "nd:exps", qa: "nd:qa", fail: ip => `nd:fail:${ip}`,
+  doodle: id => `nd:doodle:${id}`, letters: "nd:letters", jar: "nd:jar", thinks: "nd:thinks", lastthink: "nd:lastthink", loc: "nd:loc",
+  qa: "nd:qa", fail: ip => `nd:fail:${ip}`,
 };
 const newId = () => Date.now().toString(36) + crypto.randomBytes(4).toString("hex");
 const txt = (s, max) => String(s || "").trim().replace(/\s+/g, " ").slice(0, max);
@@ -148,10 +153,11 @@ async function notify(req, to, payload) {
 
 /* ================= Lecture de toutes les données ================= */
 async function loadAll(req, code) {
-  const [auth, fails, cfg, tz, notes, moods, dates, mem, mnotes, exps, qa, subs] = await db([
+  const [auth, fails, cfg, tz, notes, moods, dates, mem, mnotes, qa, subs, letters, jar, thinks, lastthink, loc] = await db([
     ["GET", K.auth], ["GET", K.fail(ipOf(req))],
     ["HGETALL", K.cfg], ["HGETALL", K.tz], ["HGETALL", K.notes], ["HGETALL", K.moods], ["HGETALL", K.dates],
-    ["HGETALL", K.mem], ["HGETALL", K.mnotes], ["HGETALL", K.exps], ["HGETALL", K.qa], ["HGETALL", K.subs],
+    ["HGETALL", K.mem], ["HGETALL", K.mnotes], ["HGETALL", K.qa], ["HGETALL", K.subs],
+    ["HGETALL", K.letters], ["HGETALL", K.jar], ["HGETALL", K.thinks], ["HGETALL", K.lastthink], ["HGETALL", K.loc],
   ]);
   if (!auth) fail(409, "SETUP");
   if (Number(fails) >= 10) fail(429, "Trop d'essais ratés. Réessaie dans 15 minutes.");
@@ -164,8 +170,9 @@ async function loadAll(req, code) {
   }
   return {
     authHash: a.hash, cfg: hobj(cfg), tz: hobj(tz), notes: parseHash(notes), moods: hobj(moods), dates: parseHash(dates),
-    mem: parseHash(mem), mnotes: parseHash(mnotes), exps: parseHash(exps), qa: hobj(qa),
+    mem: parseHash(mem), mnotes: parseHash(mnotes), qa: hobj(qa),
     subs: Object.keys(hobj(subs)),
+    letters: parseHash(letters), jar: parseHash(jar), thinks: hobj(thinks), lastthink: hobj(lastthink), loc: hobj(loc),
   };
 }
 
@@ -190,16 +197,37 @@ function view(d, who, day) {
       notes: d.mnotes.filter(n => n.mem === m.id).sort((a, b) => a.t - b.t),
     }))
     .sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.t - a.t);
+  // Lettres : le texte n'est envoyé au destinataire qu'une fois la lettre ouverte
+  const letters = d.letters.sort((a, b) => b.t - a.t).map(l => {
+    if (l.from === who || l.openedAt) return l;
+    const { text, ...sealed } = l;
+    return { ...sealed, locked: l.unlock ? l.unlock > day : false };
+  });
+  // Bocal : les raisons pas encore tirées restent secrètes
+  const jarMine = d.jar.filter(r => r.from === who).sort((a, b) => b.t - a.t);
+  const jarForMe = d.jar.filter(r => r.from !== who);
+  const locs = {};
+  for (const p in PEOPLE) if (d.loc[p]) { try { locs[p] = JSON.parse(d.loc[p]); } catch (e) {} }
   return {
     people: PEOPLE, start: START,
-    currency: d.cfg.currency || "€",
     reunion: d.cfg.reunion || null,
     tz: d.tz,
-    notes: d.notes.sort((a, b) => b.t - a.t).slice(0, 300),
+    notes: d.notes.sort((a, b) => b.t - a.t).slice(0, 300).map(n => (n.img ? { ...n, tk: photoToken(d.authHash, n.id) } : n)),
+    letters,
+    jar: {
+      mine: jarMine,                                                           // ce que j'ai écrit pour l'autre
+      drawn: jarForMe.filter(r => r.drawnAt).sort((a, b) => b.drawnAt - a.drawnAt), // ce que j'ai déjà tiré
+      left: jarForMe.filter(r => !r.drawnAt).length,                            // combien il en reste à tirer
+    },
+    thinks: {
+      fromThem: Number(d.thinks[`${other}:${day}`] || 0), fromMe: Number(d.thinks[`${who}:${day}`] || 0),
+      lastFromThem: Number(d.lastthink[other] || 0),
+      total: Object.entries(d.thinks).reduce((a, [k, v]) => a + Number(v || 0), 0),
+    },
+    locs,
     moods,
     dates: d.dates.sort((a, b) => a.date.localeCompare(b.date)),
     memories,
-    exps: d.exps.sort((a, b) => b.t - a.t),
     qa: { day, question: questionFor(day), mine, theirs: mine ? theirs : null, theirAnswered: !!theirs, history },
     push: { available: !!webpush, mine: d.subs.filter(k => k.startsWith(who + ":")).length, theirs: d.subs.filter(k => k.startsWith(other + ":")).length },
     now: Date.now(),
@@ -210,10 +238,15 @@ function view(d, who, day) {
 const ACTIONS = {
   "note.add": async (b, d, req) => {
     const text = longTxt(b.text, 1000);
-    if (!text) fail(400, "Écris un petit mot.");
-    const n = { id: newId(), from: b.who, text, t: Date.now(), read: false, heart: false };
+    const img = b.doodle ? /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.doodle)) : null;
+    if (b.doodle && (!img || img[1].length > MAX_DOODLE)) fail(400, "Dessin invalide.");
+    if (!text && !img) fail(400, "Écris un petit mot.");
+    const n = { id: newId(), from: b.who, text, img: !!img, t: Date.now(), read: false, heart: false };
+    if (img) await db([["SET", K.doodle(n.id), img[1]]]);
     await db([["HSET", K.notes, n.id, JSON.stringify(n)]]);
-    return notify(req, otherOf(b.who), { title: `💌 ${PEOPLE[b.who]}`, body: short(text, 160), tag: "note-" + n.id, url: "/?tab=notes" });
+    return notify(req, otherOf(b.who), img
+      ? { title: `🎨 ${PEOPLE[b.who]} t'a fait un dessin`, body: text ? short(text, 160) : "Viens voir 💕", tag: "note-" + n.id, url: "/?tab=notes" }
+      : { title: `💌 ${PEOPLE[b.who]}`, body: short(text, 160), tag: "note-" + n.id, url: "/?tab=notes" });
   },
   "note.read": async (b, d) => {
     const cmds = d.notes.filter(n => n.from !== b.who && !n.read).map(n => ["HSET", K.notes, n.id, JSON.stringify({ ...n, read: true })]);
@@ -227,7 +260,7 @@ const ACTIONS = {
   },
   "note.del": async (b, d) => {
     const n = d.notes.find(x => x.id === b.id);
-    if (n && n.from === b.who) await db([["HDEL", K.notes, n.id]]);
+    if (n && n.from === b.who) await db([["HDEL", K.notes, n.id], ["DEL", K.doodle(n.id)]]);
   },
 
   "mood.set": async (b, d, req) => {
@@ -290,17 +323,6 @@ const ACTIONS = {
     if (n && n.by === b.who) await db([["HDEL", K.mnotes, n.id]]);
   },
 
-  "exp.add": async (b) => {
-    const title = txt(b.title, 60) || "Dépense";
-    const amount = Math.round(Number(String(b.amount).replace(",", ".")) * 100) / 100;
-    if (!(amount > 0 && amount < 1e6)) fail(400, "Montant invalide.");
-    if (!PEOPLE[b.payer]) fail(400, "Qui a payé ?");
-    if (!["half", "full"].includes(b.split)) fail(400, "Répartition invalide.");
-    const x = { id: newId(), title, amount, payer: b.payer, split: b.split, settle: !!b.settle, by: b.who, t: Date.now() };
-    await db([["HSET", K.exps, x.id, JSON.stringify(x)]]);
-  },
-  "exp.del": async (b) => { await db([["HDEL", K.exps, String(b.id)]]); },
-
   "qa.answer": async (b, d, req) => {
     if (!isDay(b.day)) fail(400, "Date invalide.");
     const text = longTxt(b.text, 600);
@@ -310,10 +332,72 @@ const ACTIONS = {
     if (first) return notify(req, otherOf(b.who), { title: `❓ ${PEOPLE[b.who]} a répondu à la question du jour`, body: "Réponds à ton tour pour découvrir sa réponse 👀", tag: "qa-" + b.day, url: "/?tab=question" });
   },
 
-  "cfg.currency": async (b) => {
-    if (!CURRENCIES.includes(b.currency)) fail(400, "Devise inconnue.");
-    await db([["HSET", K.cfg, "currency", b.currency]]);
+  // « Je pense à toi » en un geste
+  "think": async (b, d, req) => {
+    const last = Number(d.lastthink[b.who] || 0);
+    await db([["HINCRBY", K.thinks, `${b.who}:${b.day}`, 1], ["HSET", K.lastthink, b.who, Date.now()]]);
+    if (Date.now() - last < 45000) return; // pas plus d'une notification toutes les 45 s
+    const n = Number(d.thinks[`${b.who}:${b.day}`] || 0) + 1;
+    return notify(req, otherOf(b.who), { title: `💗 ${PEOPLE[b.who]} pense à toi`, body: n > 1 ? `Déjà ${n} fois aujourd'hui…` : "En ce moment même ✨", tag: "think", url: "/" });
   },
+
+  // Lettres « Ouvre quand… » et lettres datées
+  "letter.add": async (b, d, req) => {
+    const text = longTxt(b.text, 5000);
+    const label = txt(b.label, 80);
+    const unlock = b.unlock && isDay(b.unlock) ? b.unlock : null;
+    if (!text) fail(400, "Écris ta lettre.");
+    if (!label && !unlock) fail(400, "Choisis quand l'ouvrir.");
+    const l = { id: newId(), from: b.who, label, unlock, text, t: Date.now(), openedAt: null };
+    await db([["HSET", K.letters, l.id, JSON.stringify(l)]]);
+    return notify(req, otherOf(b.who), {
+      title: `✉️ ${PEOPLE[b.who]} t'a écrit une lettre`,
+      body: unlock ? `À ouvrir le ${unlock.split("-").reverse().join("/")} 🔒` : `« Ouvre quand ${label} »`,
+      tag: "letter-" + l.id, url: "/?tab=letters",
+    });
+  },
+  "letter.open": async (b, d, req) => {
+    const l = d.letters.find(x => x.id === b.id);
+    if (!l || l.from === b.who) fail(404, "Lettre introuvable.");
+    if (l.openedAt) return;
+    if (l.unlock && l.unlock > b.day) fail(403, "Pas encore… patience 💕");
+    await db([["HSET", K.letters, l.id, JSON.stringify({ ...l, openedAt: Date.now() })]]);
+    return notify(req, l.from, { title: `💌 ${PEOPLE[b.who]} a ouvert ta lettre`, body: l.unlock ? `Ta lettre du ${l.unlock.split("-").reverse().join("/")}` : `« Ouvre quand ${l.label} »`, tag: "letteropen-" + l.id, url: "/?tab=letters" });
+  },
+  "letter.del": async (b, d) => {
+    const l = d.letters.find(x => x.id === b.id);
+    if (l && l.from === b.who) await db([["HDEL", K.letters, l.id]]);
+  },
+
+  // Bocal « Pourquoi je t'aime »
+  "jar.add": async (b, d, req) => {
+    const text = longTxt(b.text, 400);
+    if (!text) fail(400, "Écris une raison.");
+    const r = { id: newId(), from: b.who, text, t: Date.now(), drawnAt: null };
+    await db([["HSET", K.jar, r.id, JSON.stringify(r)]]);
+    const left = d.jar.filter(x => x.from === b.who && !x.drawnAt).length + 1;
+    return notify(req, otherOf(b.who), { title: `🫙 Ton bocal se remplit`, body: `${PEOPLE[b.who]} y a glissé une raison de t'aimer (${left} à découvrir)`, tag: "jar", url: "/?tab=letters" });
+  },
+  "jar.draw": async (b, d, req) => {
+    const pool = d.jar.filter(r => r.from !== b.who && !r.drawnAt);
+    if (!pool.length) fail(404, "Le bocal est vide pour l'instant 🥺");
+    const r = pool[crypto.randomInt(pool.length)];
+    await db([["HSET", K.jar, r.id, JSON.stringify({ ...r, drawnAt: Date.now() })]]);
+    const n = await notify(req, r.from, { title: `🫙 ${PEOPLE[b.who]} a tiré un papier du bocal`, body: short(r.text, 140), tag: "jardraw", url: "/?tab=letters" });
+    return { drawn: r.id, sent: n.sent };
+  },
+  "jar.del": async (b, d) => {
+    const r = d.jar.find(x => x.id === b.id);
+    if (r && r.from === b.who) await db([["HDEL", K.jar, r.id]]);
+  },
+
+  // Position approximative (arrondie à ~1 km) pour la distance et la météo
+  "loc.set": async (b) => {
+    const lat = Math.round(Number(b.lat) * 100) / 100, lon = Math.round(Number(b.lon) * 100) / 100;
+    if (!(Math.abs(lat) <= 90 && Math.abs(lon) <= 180)) fail(400, "Position invalide.");
+    await db([["HSET", K.loc, b.who, JSON.stringify({ lat, lon, city: txt(b.city, 60), t: Date.now() })]]);
+  },
+  "loc.clear": async (b) => { await db([["HDEL", K.loc, b.who]]); },
 
   "push.sub": async (b) => {
     const s = b.sub || {};
@@ -348,7 +432,8 @@ module.exports = async function handler(req, res) {
     if (req.method === "GET" && q.photo) {
       const id = String(q.photo);
       if (!/^[a-z0-9]{8,40}$/.test(id)) fail(400, "Photo invalide.");
-      const [auth, data] = await db([["GET", K.auth], ["GET", q.s === "full" ? K.photo(id) : K.thumb(id)]]);
+      const key = q.s === "full" ? K.photo(id) : q.s === "doodle" ? K.doodle(id) : K.thumb(id);
+      const [auth, data] = await db([["GET", K.auth], ["GET", key]]);
       if (!auth || q.k !== photoToken(JSON.parse(auth).hash, id)) fail(403, "Accès refusé.");
       if (!data) fail(404, "Photo introuvable.");
       res.statusCode = 200;
@@ -387,7 +472,7 @@ module.exports = async function handler(req, res) {
       extra = (await fn(b, d, req)) || {};
       d = await loadAll(req, code);
     }
-    return send(res, 200, { ...view(d, who, day), pushed: extra.sent });
+    return send(res, 200, { ...view(d, who, day), pushed: extra.sent, drawn: extra.drawn });
   } catch (e) {
     if (e.status === 409 && e.message === "SETUP") return send(res, 409, { error: "SETUP" });
     return sendError(res, e);

@@ -147,14 +147,6 @@
   .drop{border:2px dashed rgba(255,159,189,.5);border-radius:18px;padding:22px;text-align:center;cursor:pointer;color:var(--rose2);font-weight:700;background:rgba(255,122,162,.06)}
   .drop img{max-width:100%;max-height:45vh;border-radius:10px;display:block;margin:0 auto}
 
-  /* comptes */
-  .balance{text-align:center}
-  .balance .amt{font-family:var(--serif);font-size:52px;font-weight:700;color:var(--gold);line-height:1.05}
-  .exp{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--stroke)}
-  .exp:last-child{border-bottom:0}
-  .exp .d{flex:1;min-width:0}
-  .exp .d b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .exp .a{font-weight:700;white-space:nowrap}
 
   /* question */
   .question{font-family:var(--serif);font-size:34px;font-weight:700;font-style:italic;line-height:1.15;text-align:center;margin:6px 0 2px}
@@ -172,6 +164,60 @@
   .moods button span{font-size:24px;line-height:1}
   .moods button.on{background:linear-gradient(135deg,rgba(255,122,162,.4),rgba(255,190,152,.2));border-color:rgba(255,159,189,.6)}
   .moods button.spicy{border-color:rgba(255,90,90,.45)}
+
+  /* je pense à toi */
+  .thinkcard{text-align:center;padding:22px 18px}
+  .thinkbtn{width:118px;height:118px;border-radius:50%;border:0;cursor:pointer;font-size:58px;line-height:1;margin:0 auto 10px;display:grid;place-items:center;
+            background:radial-gradient(circle at 35% 30%,#ffb3c9,var(--rose) 60%,#d94a7a);box-shadow:0 0 0 10px rgba(255,122,162,.12),0 0 0 22px rgba(255,122,162,.06),0 14px 40px rgba(255,122,162,.45);
+            animation:pulse 2.4s ease-in-out infinite;transition:transform .1s;user-select:none;-webkit-user-select:none}
+  .thinkbtn:active{transform:scale(.9)}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 10px rgba(255,122,162,.12),0 0 0 22px rgba(255,122,162,.06),0 14px 40px rgba(255,122,162,.45)}50%{box-shadow:0 0 0 16px rgba(255,122,162,.16),0 0 0 32px rgba(255,122,162,.05),0 14px 50px rgba(255,122,162,.6)}}
+  .stats{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+  /* distance et météo */
+  .geo{display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center}
+  .geo .big{font-family:var(--serif);font-size:36px;font-weight:700;line-height:1;color:var(--gold)}
+  .geo .box{background:rgba(0,0,0,.18);border-radius:18px;padding:14px 8px}
+  /* lettres */
+  .envs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+  .env{position:relative;border:0;cursor:pointer;text-align:center;padding:26px 10px 16px;border-radius:14px;color:#3a2433;
+       background:linear-gradient(160deg,#fbf3ea,#f1e2d3);box-shadow:0 10px 26px rgba(0,0,0,.35);overflow:hidden;min-height:150px}
+  .env::before{content:"";position:absolute;left:0;right:0;top:0;height:58px;background:linear-gradient(160deg,#f4e6d8,#e8d4c1);clip-path:polygon(0 0,100% 0,50% 100%)}
+  .env .seal{position:relative;z-index:1;width:42px;height:42px;margin:6px auto 10px;border-radius:50%;display:grid;place-items:center;font-size:20px;
+             background:radial-gradient(circle at 35% 30%,#ff8fae,#c2335f);box-shadow:0 3px 8px rgba(0,0,0,.3);color:#fff}
+  .env .lb{font-family:var(--hand);font-size:22px;line-height:1.05;position:relative;z-index:1}
+  .env .sm{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#a07e8e;position:relative;z-index:1}
+  .env.locked{filter:saturate(.6) brightness(.92)}
+  .env.opened{min-height:0;padding:14px 10px}
+  .env.opened::before{display:none}
+  .paper{background:#fbf6ef;color:#3a2433;border-radius:10px;padding:22px 20px;box-shadow:0 14px 40px rgba(0,0,0,.45);
+         background-image:repeating-linear-gradient(transparent 0 33px,rgba(160,120,140,.18) 33px 34px);}
+  .paper .hd{font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#a07e8e;margin-bottom:8px}
+  .paper .body{font-family:var(--hand);font-size:26px;line-height:34px;white-space:pre-wrap;word-break:break-word}
+  .paper .sig{font-family:var(--hand);font-size:26px;text-align:right;margin-top:10px;color:#c2335f}
+  .unfold{animation:unfold .6s cubic-bezier(.2,.9,.3,1.1)}
+  @keyframes unfold{from{transform:perspective(800px) rotateX(70deg) scale(.8);opacity:0}}
+  .chipsel{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+  .chipsel button{border:1px solid var(--stroke);background:var(--glass);border-radius:999px;padding:7px 12px;cursor:pointer;font-size:14px;color:var(--text)}
+  .chipsel button.on{background:linear-gradient(135deg,rgba(255,122,162,.45),rgba(255,190,152,.25));border-color:rgba(255,159,189,.6)}
+  .writepaper{background:#fbf6ef;color:#3a2433;font-family:var(--hand);font-size:24px;line-height:32px;min-height:220px;border:0;
+              background-image:repeating-linear-gradient(transparent 0 31px,rgba(160,120,140,.2) 31px 32px);padding:10px 14px}
+  .writepaper::placeholder{color:#b49aa8}
+  /* bocal */
+  .jar{position:relative;width:150px;height:170px;margin:4px auto 12px}
+  .jar .glass{position:absolute;inset:22px 6px 0;border-radius:28px 28px 34px 34px;background:linear-gradient(90deg,rgba(255,255,255,.16),rgba(255,255,255,.05) 40%,rgba(255,255,255,.12));
+              border:2px solid rgba(255,255,255,.35);overflow:hidden}
+  .jar .lid{position:absolute;left:24px;right:24px;top:6px;height:22px;border-radius:8px;background:linear-gradient(#f5d08a,#c99a4b);box-shadow:0 2px 6px rgba(0,0,0,.3)}
+  .jar .papers{position:absolute;left:0;right:0;bottom:0;display:flex;flex-wrap:wrap-reverse;justify-content:center;gap:2px;padding:8px}
+  .jar .papers span{font-size:18px;line-height:1}
+  .jar .count{position:absolute;inset:auto 0 -6px;text-align:center}
+  .reason{background:#fbf6ef;color:#3a2433;border-radius:10px;padding:10px 14px;margin:8px 0;font-family:var(--hand);font-size:22px;line-height:1.15;box-shadow:0 6px 16px rgba(0,0,0,.3)}
+  .reason small{display:block;font-family:var(--sans);font-size:11px;color:#a07e8e;margin-top:4px}
+  /* dessin */
+  .doodlewrap{position:relative;width:100%;aspect-ratio:1;background:#fff;border-radius:16px;overflow:hidden;touch-action:none}
+  .doodlewrap canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+  .sw{width:32px;height:32px;border-radius:50%;border:2px solid rgba(255,255,255,.4);cursor:pointer;flex:none}
+  .sw.on{outline:3px solid #fff;outline-offset:2px}
+  .bubble img.doodle{display:block;width:100%;max-width:260px;border-radius:12px;background:#fff;margin-bottom:4px}
 
   /* fenêtres, toasts */
   .modal{position:fixed;inset:0;background:rgba(8,4,18,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:20;animation:fade .2s}
@@ -244,17 +290,17 @@ function sheet(html){
 }
 const ICONS={
   home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg>',
-  notes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
+  notes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
+  letters:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
   memories:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>',
   question:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-4-7.5"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>',
-  money:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="2.5"/><path d="M6 6V4h12v2"/></svg>',
   gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
 };
 
 /* ================= État ================= */
 let CODE=LS.get("nd-code"), WHO=LS.get("nd-who"), D=null, PEOPLE={dali:"Dali",rahma:"Rahma"}, VAPID=null;
 let tab=LS.get("nd-tab")||"home", pendingRender=false, openMem=null;
-if(!["home","notes","memories","question","money"].includes(tab)) tab="home";
+if(!["home","notes","memories","letters","question"].includes(tab)) tab="home";
 const other=()=>WHO==="dali"?"rahma":"dali";
 const nm=p=>PEOPLE[p]||p;
 
@@ -403,14 +449,14 @@ async function start(){
 function openDeepLink(u){
   const t=u.searchParams.get("tab"), m=u.searchParams.get("m");
   history.replaceState(null,"","/");
-  if(t && ["home","notes","memories","question","money"].includes(t)){ tab=t; LS.set("nd-tab",tab); }
+  if(t && ["home","notes","memories","letters","question"].includes(t)){ tab=t; LS.set("nd-tab",tab); }
   render(true); window.scrollTo(0,0);
   if(m){ const x=D.memories.find(y=>y.id===m); if(x) memoryView(x.id); }
   refresh(true);
 }
 
 /* ================= Structure ================= */
-const TABS=[["home","Nous"],["notes","Mots"],["memories","Souvenirs"],["question","Question"],["money","Comptes"]];
+const TABS=[["home","Nous"],["notes","Mots"],["memories","Souvenirs"],["letters","Lettres"],["question","Question"]];
 function shell(){
   app.innerHTML=`
     <header class="top"><div class="brand">${esc(nm("dali"))}<b>♥</b>${esc(nm("rahma"))}</div><button class="round" id="menu" aria-label="Réglages">${ICONS.gear}</button></header>
@@ -431,8 +477,9 @@ function render(force){
     const old=b.querySelector(".badge"); if(old) old.remove();
     if(b.dataset.tab==="notes" && u && tab!=="notes") b.insertAdjacentHTML("beforeend",`<span class="badge">${u}</span>`);
   });
+  checkIncomingThink();
   const y=window.scrollY;
-  ({home:homeTab,notes:notesTab,memories:memoriesTab,question:questionTab,money:moneyTab})[tab]();
+  ({home:homeTab,notes:notesTab,memories:memoriesTab,letters:lettersTab,question:questionTab})[tab]();
   if(!force) window.scrollTo(0,y);
   if(openMem && $("#memsheet")) fillMemory(openMem);
 }
@@ -513,6 +560,18 @@ function homeTab(){
 
     ${reunion}
 
+    <div class="card glow thinkcard">
+      <button class="thinkbtn" id="think" aria-label="Je pense à toi">💗</button>
+      <h3>Je pense à toi</h3>
+      <p class="faint" style="margin:4px 0 0">Touche le cœur : ${esc(nm(o))} le sent sur son téléphone</p>
+      <div class="stats">
+        <span class="pillnote" style="margin:0">${D.thinks.fromThem?`💭 ${esc(nm(o))} a pensé à toi <b>${D.thinks.fromThem}</b> fois aujourd'hui`:`💭 ${esc(nm(o))} ne t'a pas encore envoyé de pensée aujourd'hui`}</span>
+        ${D.thinks.fromMe?`<span class="pillnote" style="margin:0">Toi : ${D.thinks.fromMe} fois</span>`:""}
+      </div>
+    </div>
+
+    ${geoCard()}
+
     <div class="card">
       <div class="eyebrow">${esc(nm(o))} en ce moment ${theirTime?`<span class="faint" style="letter-spacing:0;text-transform:none">🕐 ${theirTime} chez ${esc(nm(o))}</span>`:""}</div>
       ${theirMood?`<div class="moodbig"><div class="e">${esc(theirMood.emoji)}</div><div style="flex:1;min-width:0">
@@ -528,7 +587,7 @@ function homeTab(){
 
     <div class="card">
       <div class="eyebrow">Dernier mot de ${esc(nm(o))} <button class="link" id="gonotes">Lui écrire →</button></div>
-      ${lastIn?`<div class="lastnote">“${esc(lastIn.text.length>220?lastIn.text.slice(0,219)+"…":lastIn.text)}”</div><div class="faint">${ago(lastIn.t)}</div>`
+      ${lastIn?`<div class="lastnote">${lastIn.img&&!lastIn.text?"🎨 Un dessin rien que pour toi":`“${esc(lastIn.text.length>220?lastIn.text.slice(0,219)+"…":lastIn.text)}”`}</div><div class="faint">${ago(lastIn.t)}</div>`
         :`<p style="margin:0">Pas encore de petit mot. Écris-lui le premier 💌</p>`}
     </div>
 
@@ -551,6 +610,9 @@ function homeTab(){
         </form></details>
     </div>`;
   $("#setreunion").onclick=reunionPicker;
+  $("#think").onclick=e=>sendThink(e);
+  if($("#geoshare")) $("#geoshare").onclick=e=>shareLocation(e.currentTarget);
+  fillWeather();
   $("#moodbtn").onclick=moodPicker;
   if($("#pushon")) $("#pushon").onclick=e=>enablePush(e.currentTarget);
   $("#gonotes").onclick=()=>{ tab="notes"; LS.set("nd-tab",tab); render(true); window.scrollTo(0,0); };
@@ -600,7 +662,7 @@ function notesTab(){
     const mine=n.from===WHO, d=new Date(n.t), dk=ymd(d);
     let sep=""; if(dk!==lastDay){ lastDay=dk; const k=daysBetween(parseDay(dk),todayDate()); sep=`<div class="daysep">${k===0?"Aujourd'hui":k===1?"Hier":DAYS[d.getDay()]+" "+fmtDay(d)}</div>`; }
     return sep+`<div class="bubble ${mine?"me":"them"}">
-      <div class="txt">${esc(n.text)}</div>
+      ${n.img?`<img class="doodle" src="${API}?photo=${n.id}&k=${n.tk}&s=doodle" alt="Dessin" loading="lazy">`:""}${n.text?`<div class="txt">${esc(n.text)}</div>`:""}
       <div class="meta"><span>${hhmm(n.t)} ${!mine&&!n.read?'<span class="new">nouveau</span>':""}${mine?(n.read?" · vu":""):""}</span>
         ${mine?`<button class="x" data-delnote="${n.id}" aria-label="Supprimer" style="font-size:16px">×</button>`:`<button class="hb ${n.heart?"on":""}" data-heart="${n.id}" aria-label="J'adore">❤️</button>`}</div>
       ${mine&&n.heart?`<span class="hs">❤️</span>`:""}
@@ -611,8 +673,9 @@ function notesTab(){
     ${D.notes.length?list:`<p class="center" style="margin:40px 0;font-family:var(--serif);font-style:italic;font-size:22px">Votre boîte à mots doux est vide… pour l'instant 💌</p>`}
     <div class="card" style="margin-top:18px">
       <textarea id="nt" maxlength="1000" placeholder="Écris-lui quelque chose de doux…"></textarea>
-      <button class="btn" id="send" style="margin-top:12px">Envoyer à ${esc(nm(other()))}</button>
+      <div class="row" style="margin-top:12px"><button class="btn ghost" id="draw" style="width:auto;flex:none">🎨 Dessiner</button><button class="btn grow" id="send">Envoyer à ${esc(nm(other()))}</button></div>
     </div>`;
+  $("#draw").onclick=doodleSheet;
   $("#send").onclick=async e=>{ const t=$("#nt").value.trim(); if(!t) return toast("Écris un petit mot"); const r=await act("note.add",{text:t},e.target); if(r){ hearts(8); toast(sentMsg(r)); window.scrollTo(0,document.body.scrollHeight); } };
   $$("[data-heart]").forEach(b=>b.onclick=e=>{ if(!b.classList.contains("on")) hearts(5,e.clientX,e.clientY); act("note.heart",{id:b.dataset.heart}); });
   $$("[data-delnote]").forEach(b=>b.onclick=()=>{ if(confirm("Supprimer ce mot ?")) act("note.del",{id:b.dataset.delnote}); });
@@ -718,6 +781,219 @@ function fillMemory(id){
   box.querySelectorAll("[data-delmn]").forEach(b=>b.onclick=()=>act("mem.notedel",{id:b.dataset.delmn}).then(()=>fillMemory(id)));
 }
 
+/* ================= Je pense à toi ================= */
+function sendThink(e){
+  const r=e.currentTarget.getBoundingClientRect();
+  hearts(6,r.left+r.width/2,r.top+r.height/2);
+  if(navigator.vibrate) navigator.vibrate(30);
+  D.thinks.fromMe++;
+  api("POST",{action:"think"}).then(j=>{ D=j; render(); if(j.pushed) toast(`${nm(other())} a reçu ta pensée 💗`); }).catch(err=>toast(err.message));
+}
+function checkIncomingThink(){
+  const last=D.thinks.lastFromThem||0, seen=Number(LS.get("nd-seenthink-"+WHO)||0);
+  if(last>seen){
+    LS.set("nd-seenthink-"+WHO,String(last));
+    if(seen && Date.now()-last<10*60000){ hearts(12); toast(`💗 ${nm(other())} pense à toi`); if(navigator.vibrate) navigator.vibrate([60,40,60]); }
+  }
+}
+
+/* ================= Distance et météo ================= */
+function km(a,b){
+  const R=6371, r=x=>x*Math.PI/180, dLat=r(b.lat-a.lat), dLon=r(b.lon-a.lon);
+  const h=Math.sin(dLat/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLon/2)**2;
+  return Math.round(2*R*Math.asin(Math.sqrt(h)));
+}
+function geoCard(){
+  const me=D.locs[WHO], them=D.locs[other()], o=esc(nm(other()));
+  if(!me) return `<div class="card"><div class="eyebrow">🌍 La distance entre nous</div>
+    <p style="margin:0 0 12px;color:var(--text)">Partage ta position approximative pour voir combien de kilomètres vous séparent et la météo chez ${o}.</p>
+    <button class="btn ghost" id="geoshare">Partager ma position</button></div>`;
+  if(!them) return `<div class="card"><div class="eyebrow">🌍 La distance entre nous</div><p style="margin:0">${o} n'a pas encore partagé sa position.</p></div>`;
+  const d=km(me,them);
+  return `<div class="card"><div class="eyebrow">🌍 La distance entre nous</div>
+    <div class="geo">
+      <div class="box"><div class="big">${d.toLocaleString("fr-FR")}</div><div class="faint">km nous séparent${them.city?`<br>${o} est à ${esc(them.city)}`:""}</div></div>
+      <div class="box" id="wx"><div class="big">…</div><div class="faint">météo chez ${o}</div></div>
+    </div>
+    <p class="center" style="margin:12px 0 0;font-family:var(--serif);font-style:italic;font-size:19px;color:var(--text)">${d<5?"Enfin ensemble 🥹":"…mais jamais loin de mon cœur."}</p></div>`;
+}
+const WX={0:["☀️","Ciel dégagé"],1:["🌤️","Plutôt dégagé"],2:["⛅","Nuageux"],3:["☁️","Couvert"],45:["🌫️","Brouillard"],48:["🌫️","Brouillard"],
+  51:["🌦️","Bruine"],53:["🌦️","Bruine"],55:["🌦️","Bruine"],61:["🌧️","Pluie"],63:["🌧️","Pluie"],65:["🌧️","Forte pluie"],66:["🌧️","Pluie glacée"],67:["🌧️","Pluie glacée"],
+  71:["🌨️","Neige"],73:["🌨️","Neige"],75:["❄️","Forte neige"],77:["🌨️","Neige"],80:["🌦️","Averses"],81:["🌧️","Averses"],82:["⛈️","Fortes averses"],
+  85:["🌨️","Averses de neige"],86:["❄️","Averses de neige"],95:["⛈️","Orage"],96:["⛈️","Orage"],99:["⛈️","Orage"]};
+let wxCache=null;
+async function fillWeather(){
+  const box=$("#wx"), them=D.locs[other()]; if(!box||!them) return;
+  const key=them.lat+","+them.lon;
+  try{
+    if(!wxCache || wxCache.key!==key || Date.now()-wxCache.t>20*60000){
+      const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${them.lat}&longitude=${them.lon}&current=temperature_2m,weather_code,is_day&timezone=auto`);
+      const j=await r.json(); wxCache={key,t:Date.now(),c:j.current};
+    }
+    const c=wxCache.c, [ic,lb]=WX[c.weather_code]||["🌡️",""];
+    const night=c.is_day===0 && (c.weather_code<=2);
+    const b=$("#wx"); if(b) b.innerHTML=`<div class="big">${night?"🌙":ic} ${Math.round(c.temperature_2m)}°</div><div class="faint">${night?"Nuit claire":lb} chez ${esc(nm(other()))}</div>`;
+  }catch(e){ const b=$("#wx"); if(b) b.innerHTML=`<div class="big">🌡️</div><div class="faint">Météo indisponible</div>`; }
+}
+function shareLocation(btn){
+  return new Promise(resolve=>{
+    if(!navigator.geolocation){ toast("Localisation non disponible"); return resolve(false); }
+    if(btn) btn.disabled=true;
+    navigator.geolocation.getCurrentPosition(async pos=>{
+      const lat=pos.coords.latitude, lon=pos.coords.longitude;
+      let city="";
+      try{ const r=await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=fr`); const j=await r.json(); city=j.city||j.locality||""; }catch(e){}
+      const ok=await act("loc.set",{lat,lon,city});
+      if(btn&&btn.isConnected) btn.disabled=false;
+      if(ok) toast("Position partagée 📍");
+      resolve(!!ok);
+    },err=>{ if(btn&&btn.isConnected) btn.disabled=false; toast(err.code===1?"Autorise la localisation dans les réglages du téléphone":"Position introuvable"); resolve(false); },
+    {enableHighAccuracy:false,timeout:15000,maximumAge:600000});
+  });
+}
+
+/* ================= Dessins ================= */
+function doodleSheet(){
+  const m=sheet(`<h2>Un dessin pour ${esc(nm(other()))}</h2>
+    <div class="doodlewrap" id="dw" style="margin-top:14px"><canvas id="dc"></canvas></div>
+    <div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px">
+      ${["#e8466c","#2a1342","#4f7cff","#2ec4b6","#ffb020","#ffffff"].map((c,i)=>`<button class="sw ${i?"":"on"}" data-c="${c}" style="background:${c}"></button>`).join("")}
+      <span class="grow"></span>
+      <div class="seg" id="dwid" style="padding:3px"><button data-w="4" class="on">fin</button><button data-w="12">épais</button></div>
+      <button class="btn small ghost" id="dundo">↶</button>
+    </div>
+    <input type="text" id="dtx" maxlength="200" placeholder="Un petit mot avec ? (optionnel)" style="margin-top:12px">
+    <button class="btn" id="dsend" style="margin-top:12px">Envoyer le dessin</button>`);
+  const cv=m.querySelector("#dc"), wrap=m.querySelector("#dw"), ctx=cv.getContext("2d");
+  let W=0,H=0, strokes=[], cur=null, color="#e8466c", width=4;
+  const size=()=>{ const r=wrap.getBoundingClientRect(), dpr=Math.min(devicePixelRatio||1,2); W=r.width; H=r.height; cv.width=W*dpr; cv.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); redraw(); };
+  const line=s=>{ ctx.strokeStyle=s.c; ctx.lineWidth=s.w; ctx.lineCap="round"; ctx.lineJoin="round"; const p=s.p.map(([x,y])=>[x*W,y*H]);
+    ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); if(p.length===1) ctx.lineTo(p[0][0]+.01,p[0][1]);
+    for(let i=1;i<p.length-1;i++){ ctx.quadraticCurveTo(p[i][0],p[i][1],(p[i][0]+p[i+1][0])/2,(p[i][1]+p[i+1][1])/2); }
+    if(p.length>1) ctx.lineTo(p[p.length-1][0],p[p.length-1][1]); ctx.stroke(); };
+  const redraw=()=>{ ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H); strokes.forEach(line); if(cur) line(cur); };
+  const pos=e=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]; };
+  cv.addEventListener("pointerdown",e=>{ e.preventDefault(); cv.setPointerCapture(e.pointerId); cur={c:color,w:width,p:[pos(e)]}; redraw(); });
+  cv.addEventListener("pointermove",e=>{ if(!cur) return; e.preventDefault(); cur.p.push(pos(e)); redraw(); });
+  const up=()=>{ if(cur){ strokes.push(cur); cur=null; redraw(); } };
+  cv.addEventListener("pointerup",up); cv.addEventListener("pointercancel",up);
+  requestAnimationFrame(size);
+  m.querySelectorAll(".sw").forEach(b=>b.onclick=()=>{ color=b.dataset.c; m.querySelectorAll(".sw").forEach(x=>x.classList.toggle("on",x===b)); });
+  m.querySelectorAll("#dwid button").forEach(b=>b.onclick=()=>{ width=+b.dataset.w; m.querySelectorAll("#dwid button").forEach(x=>x.classList.toggle("on",x===b)); });
+  m.querySelector("#dundo").onclick=()=>{ strokes.pop(); redraw(); };
+  m.querySelector("#dsend").onclick=async e=>{
+    if(!strokes.length) return toast("Dessine quelque chose d'abord 🎨");
+    const out=document.createElement("canvas"); out.width=640; out.height=640;
+    const o=out.getContext("2d"); o.drawImage(cv,0,0,640,640);
+    const r=await act("note.add",{text:m.querySelector("#dtx").value,doodle:out.toDataURL("image/jpeg",.85)},e.target);
+    if(r){ m.remove(); hearts(8); toast(sentMsg(r)); tab="notes"; LS.set("nd-tab",tab); render(true); }
+  };
+}
+
+/* ================= Lettres & bocal ================= */
+const WHEN=["tu es triste","je te manque trop","tu n'arrives pas à dormir","tu as besoin de rire","tu doutes de toi","on s'est disputés",
+  "ta journée a été difficile","tu te sens seul·e","tu es stressé·e","tu veux savoir combien je t'aime","tu as besoin d'un câlin","c'est ton anniversaire"];
+function lettersTab(){
+  const o=esc(nm(other()));
+  const forMe=D.letters.filter(l=>l.from!==WHO), mine=D.letters.filter(l=>l.from===WHO);
+  const sealed=forMe.filter(l=>!l.openedAt), opened=forMe.filter(l=>l.openedAt);
+  const envHTML=l=>{
+    const locked=l.locked, k=l.unlock?daysBetween(todayDate(),parseDay(l.unlock)):0;
+    return `<button class="env ${locked?"locked":""}" data-letter="${l.id}">
+      <div class="seal">${locked?"🔒":"♥"}</div>
+      <div class="sm">${l.unlock?(locked?`s'ouvre ${k===1?"demain":"dans "+plural(k,"jour")}`:"à ouvrir aujourd'hui"):"Ouvre quand…"}</div>
+      <div class="lb">${l.unlock?fmtDay(parseDay(l.unlock)):esc(l.label)}</div></button>`;
+  };
+  const jarLeft=D.jar.left, papers=Math.min(jarLeft,24);
+  $("#page").innerHTML=`
+    <h2 style="margin:10px 0 2px">Lettres</h2><p style="margin:0">Des lettres à ouvrir au bon moment, et un bocal rempli de raisons de vous aimer.</p>
+
+    <div class="card">
+      <div class="eyebrow">Pour toi, de la part de ${o} <span class="faint" style="letter-spacing:0">${sealed.length?plural(sealed.length,"lettre")+" à ouvrir":""}</span></div>
+      ${sealed.length?`<div class="envs">${sealed.map(envHTML).join("")}</div>`:`<p style="margin:0">Pas de lettre fermée pour l'instant.</p>`}
+      ${opened.length?`<details style="margin-top:14px"><summary>Relire les lettres ouvertes (${opened.length})</summary>
+        <div class="envs">${opened.map(l=>`<button class="env opened" data-letter="${l.id}"><div class="sm">${l.unlock?"Lettre du "+fmtDay(parseDay(l.unlock)):"Ouvre quand…"}</div><div class="lb">${l.unlock?"💌":esc(l.label)}</div></button>`).join("")}</div></details>`:""}
+    </div>
+
+    <button class="btn" id="write">✍️ Écrire une lettre à ${o}</button>
+    ${mine.length?`<div class="card"><div class="eyebrow">Tes lettres pour ${o}</div>
+      ${mine.map(l=>`<div class="date"><div class="d"><b>${l.unlock?"À ouvrir le "+fmtDay(parseDay(l.unlock)):"Ouvre quand "+esc(l.label)}</b>
+        <div class="faint">${l.openedAt?`✓ Ouverte ${ago(l.openedAt)}`:"Pas encore ouverte"}</div></div>
+        <button class="link" data-readmine="${l.id}">Relire</button><button class="x" data-delletter="${l.id}" aria-label="Supprimer">×</button></div>`).join("")}</div>`:""}
+
+    <div class="card center" style="margin-top:22px">
+      <div class="eyebrow" style="justify-content:center">🫙 Ton bocal « Pourquoi je t'aime »</div>
+      <div class="jar"><div class="lid"></div><div class="glass"><div class="papers">${Array.from({length:papers},(_,i)=>`<span>${["💗","💌","🤍","💕"][i%4]}</span>`).join("")}</div></div></div>
+      <p style="margin:0 0 12px;color:var(--text)">${jarLeft?`${plural(jarLeft,"papier")} écrit${jarLeft>1?"s":""} par ${o} ${jarLeft>1?"t'attendent":"t'attend"}`:`Ton bocal est vide pour l'instant… ${o} va le remplir 🥺`}</p>
+      <button class="btn" id="drawjar" ${jarLeft?"":"disabled"}>Tirer un papier</button>
+      ${D.jar.drawn.length?`<details style="margin-top:14px;text-align:left"><summary>Les raisons que tu as déjà lues (${D.jar.drawn.length})</summary>
+        ${D.jar.drawn.map(r=>`<div class="reason">${esc(r.text)}<small>tiré ${ago(r.drawnAt)}</small></div>`).join("")}</details>`:""}
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Remplir le bocal de ${o}</div>
+      <p style="margin:0 0 10px">Écris une raison pour laquelle tu l'aimes. ${o} la découvrira en tirant un papier.</p>
+      <textarea id="jt" maxlength="400" placeholder="J'aime ta façon de…" style="min-height:70px"></textarea>
+      <button class="btn" id="jadd" style="margin-top:10px">Glisser dans son bocal</button>
+      ${D.jar.mine.length?`<p class="faint" style="margin:12px 0 0">Tu as écrit ${plural(D.jar.mine.length,"raison")} · ${D.jar.mine.filter(r=>!r.drawnAt).length} pas encore lue${D.jar.mine.filter(r=>!r.drawnAt).length>1?"s":""}</p>
+        <details style="margin-top:8px"><summary>Voir mes raisons</summary>${D.jar.mine.map(r=>`<div class="reason">${esc(r.text)}<small>${r.drawnAt?"lue "+ago(r.drawnAt):"pas encore lue"} · <button class="link" data-deljar="${r.id}" style="font-size:11px">supprimer</button></small></div>`).join("")}</details>`:""}
+    </div>`;
+  $$("[data-letter]").forEach(b=>b.onclick=()=>openLetter(b.dataset.letter));
+  $$("[data-readmine]").forEach(b=>b.onclick=()=>showLetter(D.letters.find(l=>l.id===b.dataset.readmine)));
+  $$("[data-delletter]").forEach(b=>b.onclick=()=>{ if(confirm("Supprimer cette lettre ?")) act("letter.del",{id:b.dataset.delletter}); });
+  $$("[data-deljar]").forEach(b=>b.onclick=()=>{ if(confirm("Retirer cette raison du bocal ?")) act("jar.del",{id:b.dataset.deljar}); });
+  $("#write").onclick=writeLetter;
+  $("#drawjar").onclick=async e=>{
+    const r=await act("jar.draw",{},e.currentTarget);
+    if(r && r.drawn){ const x=D.jar.drawn.find(y=>y.id===r.drawn); if(x){ hearts(10);
+      sheet(`<div class="center"><div class="eyebrow" style="justify-content:center">🫙 Pourquoi je t'aime</div></div>
+        <div class="paper unfold" style="margin-top:10px"><div class="body" style="text-align:center">${esc(x.text)}</div><div class="sig">— ${esc(nm(x.from))}</div></div>`); } }
+  };
+  $("#jadd").onclick=async e=>{ const t=$("#jt").value.trim(); if(!t) return toast("Écris une raison"); const r=await act("jar.add",{text:t},e.target); if(r){ hearts(6); toast("Glissé dans son bocal 🫙"); } };
+}
+async function openLetter(id){
+  const l=D.letters.find(x=>x.id===id); if(!l) return;
+  if(l.locked){ const k=daysBetween(todayDate(),parseDay(l.unlock)); return toast(`Patience… elle s'ouvre ${k===1?"demain":"dans "+plural(k,"jour")} 💕`); }
+  if(!l.openedAt){ const r=await act("letter.open",{id}); if(!r) return; hearts(12); }
+  showLetter(D.letters.find(x=>x.id===id));
+}
+function showLetter(l){
+  if(!l) return;
+  sheet(`<div class="paper unfold">
+    <div class="hd">${l.unlock?"Lettre du "+fmtDay(parseDay(l.unlock)):"Ouvre quand "+esc(l.label)}</div>
+    <div class="body">${esc(l.text)}</div>
+    <div class="sig">— ${esc(nm(l.from))}</div></div>`);
+}
+function writeLetter(){
+  let mode="when", label="";
+  const m=sheet(`<h2>Une lettre pour ${esc(nm(other()))}</h2>
+    <div class="seg" id="lm" style="margin-top:14px"><button data-v="when" class="on">Ouvre quand…</button><button data-v="date">À une date précise</button></div>
+    <div id="lwhen" style="margin-top:12px">
+      <div class="chipsel">${WHEN.map(w=>`<button data-w="${esc(w)}">${esc(w)}</button>`).join("")}</div>
+      <input type="text" id="lcustom" maxlength="80" placeholder="…ou écris ta propre situation" style="margin-top:8px">
+    </div>
+    <div id="ldate" style="margin-top:12px;display:none">
+      <p style="margin:0 0 6px">${esc(nm(other()))} ne pourra l'ouvrir qu'à partir de ce jour-là (anniversaire, retrouvailles…).</p>
+      <input type="date" id="lday" min="${ymd(new Date(Date.now()+86400000))}">
+    </div>
+    <textarea id="ltext" class="writepaper" maxlength="5000" placeholder="Mon amour…" style="margin-top:14px;width:100%;border-radius:10px"></textarea>
+    <button class="btn" id="lsend" style="margin-top:14px">Sceller et envoyer 💌</button>`);
+  m.querySelectorAll("#lm button").forEach(b=>b.onclick=()=>{ mode=b.dataset.v; m.querySelectorAll("#lm button").forEach(x=>x.classList.toggle("on",x===b));
+    m.querySelector("#lwhen").style.display=mode==="when"?"":"none"; m.querySelector("#ldate").style.display=mode==="date"?"":"none"; });
+  m.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{ label=b.dataset.w; m.querySelector("#lcustom").value=""; m.querySelectorAll("[data-w]").forEach(x=>x.classList.toggle("on",x===b)); });
+  m.querySelector("#lcustom").oninput=()=>{ label=""; m.querySelectorAll("[data-w]").forEach(x=>x.classList.remove("on")); };
+  m.querySelector("#lsend").onclick=async e=>{
+    const text=m.querySelector("#ltext").value.trim();
+    const lab=mode==="when"?(label||m.querySelector("#lcustom").value.trim().replace(/^ouvre quand\s*/i,"")):"";
+    const unlock=mode==="date"?m.querySelector("#lday").value:"";
+    if(mode==="when" && !lab) return toast("Choisis quand l'ouvrir");
+    if(mode==="date" && !unlock) return toast("Choisis la date");
+    if(!text) return toast("Écris ta lettre");
+    const r=await act("letter.add",{text,label:lab,unlock},e.target);
+    if(r){ m.remove(); hearts(10); toast(sentMsg(r)); }
+  };
+}
+
 /* ================= Question du jour ================= */
 function questionTab(){
   const q=D.qa, o=nm(other());
@@ -744,49 +1020,6 @@ function questionTab(){
   $("#qs").onclick=async e=>{ const t=$("#qa").value.trim(); if(!t) return toast("Écris ta réponse"); if(await act("qa.answer",{day:q.day,text:t},e.target)) hearts(5); };
 }
 
-/* ================= Comptes ================= */
-const money=n=>(Math.round(n*100)/100).toLocaleString("fr-FR",{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2})+" "+D.currency;
-function balance(){ // > 0 : Rahma doit à Dali
-  let b=0;
-  for(const x of D.exps){ const share=x.split==="half"?x.amount/2:x.amount; b+= x.payer==="dali"?share:-share; }
-  return Math.round(b*100)/100;
-}
-let payer=null, split="half";
-function moneyTab(){
-  payer=payer||WHO;
-  const b=balance(), debtor=b>0?"rahma":"dali", creditor=b>0?"dali":"rahma";
-  $("#page").innerHTML=`
-    <h2 style="margin:10px 0 2px">Nos comptes</h2><p style="margin:0">Billets de train, d'avion, cadeaux… pour rester à l'équilibre.</p>
-    <div class="card glow balance">
-      ${Math.abs(b)<0.01?`<div style="font-size:38px">✨</div><h3>Vous êtes quittes</h3>`
-        :`<p style="margin:0">${esc(nm(debtor))} doit</p><div class="amt">${money(Math.abs(b))}</div><p style="margin:0">à ${esc(nm(creditor))}</p>
-          <button class="btn small ghost" id="settle" style="margin-top:12px">C'est remboursé</button>`}
-    </div>
-    <div class="card stack">
-      <div class="eyebrow" style="margin:0">Nouvelle dépense</div>
-      <input type="text" id="et" maxlength="60" placeholder="Ex : Billet d'avion, cadeau…">
-      <input type="number" id="ea" inputmode="decimal" step="0.01" min="0" placeholder="Montant (${esc(D.currency)})">
-      <div><div class="faint" style="margin-bottom:6px">Qui a payé ?</div>
-        <div class="seg" id="payer">${Object.keys(PEOPLE).map(p=>`<button data-v="${p}" class="${p===payer?"on":""}">${esc(nm(p))}</button>`).join("")}</div></div>
-      <div><div class="faint" style="margin-bottom:6px">Pour qui ?</div>
-        <div class="seg" id="split"><button data-v="half" class="${split==="half"?"on":""}">Nous deux (50/50)</button><button data-v="full" class="${split==="full"?"on":""}">Pour l'autre</button></div></div>
-      <button class="btn" id="add">Ajouter</button>
-    </div>
-    <div class="card">
-      <div class="eyebrow">Historique</div>
-      ${D.exps.length?D.exps.slice(0,100).map(x=>`<div class="exp">
-          <span style="font-size:22px">${x.settle?"💸":"🧾"}</span>
-          <div class="d"><b>${esc(x.title)}</b><span class="faint">${esc(nm(x.payer))} a payé${x.settle?"":x.split==="half"?" · 50/50":" · pour "+esc(nm(x.payer==="dali"?"rahma":"dali"))} · ${ago(x.t)}</span></div>
-          <span class="a">${money(x.amount)}</span><button class="x" data-delexp="${x.id}" aria-label="Supprimer">×</button></div>`).join("")
-        :`<p class="center" style="margin:6px 0">Aucune dépense pour l'instant</p>`}
-    </div>`;
-  $$("#payer button").forEach(b=>b.onclick=()=>{ payer=b.dataset.v; $$("#payer button").forEach(x=>x.classList.toggle("on",x===b)); });
-  $$("#split button").forEach(b=>b.onclick=()=>{ split=b.dataset.v; $$("#split button").forEach(x=>x.classList.toggle("on",x===b)); });
-  $("#add").onclick=e=>act("exp.add",{title:$("#et").value,amount:$("#ea").value,payer,split},e.target);
-  if($("#settle")) $("#settle").onclick=()=>{ if(confirm(`${nm(debtor)} a remboursé ${money(Math.abs(b))} à ${nm(creditor)} ?`)) act("exp.add",{title:"Remboursement",amount:Math.abs(b),payer:debtor,split:"full",settle:true}); };
-  $$("[data-delexp]").forEach(b=>b.onclick=()=>{ if(confirm("Supprimer cette dépense ?")) act("exp.del",{id:b.dataset.delexp}); });
-}
-
 /* ================= Réglages ================= */
 function settings(){
   const st={on:"Activées sur ce téléphone ✓",off:"Désactivées",denied:"Bloquées dans les réglages du téléphone","needs-install":"Installe d'abord l'appli sur l'écran d'accueil",unsupported:"Non disponibles sur ce navigateur",unknown:"…"}[PUSH];
@@ -799,8 +1032,9 @@ function settings(){
         <p class="faint" style="margin:10px 0 0">${D.push.theirs?`${esc(nm(other()))} les a activées ✓`:`${esc(nm(other()))} ne les a pas encore activées.`}</p></div>
       <div><div class="faint" style="margin-bottom:6px">Sur ce téléphone, je suis</div>
         <div class="seg" id="sw">${Object.entries(PEOPLE).map(([k,v])=>`<button data-v="${k}" class="${k===WHO?"on":""}">${esc(v)}</button>`).join("")}</div></div>
-      <div><div class="faint" style="margin-bottom:6px">Devise des comptes</div>
-        <div class="seg" id="cur">${["€","DT","$","£","CHF","MAD"].map(c=>`<button data-v="${c}" class="${c===D.currency?"on":""}">${c}</button>`).join("")}</div></div>
+      <div class="card" style="margin:0"><div class="eyebrow">📍 Distance et météo</div>
+        <p style="margin:0 0 12px;color:var(--text)">${D.locs[WHO]?"Ta position approximative est partagée ✓":"Partage ta position approximative (à ~1 km près) pour voir la distance qui vous sépare et la météo chez l'autre."}</p>
+        ${D.locs[WHO]?`<div class="row"><button class="btn small ghost" id="locup">Mettre à jour</button><button class="btn small ghost" id="locoff">Ne plus partager</button></div>`:`<button class="btn" id="locon">Partager ma position</button>`}</div>
       <button class="btn ghost" id="inst">📲 Installer l'appli sur l'écran d'accueil</button>
       <button class="btn ghost" id="out">Se déconnecter</button>
     </div>`);
@@ -813,9 +1047,11 @@ function settings(){
   m.querySelectorAll("#sw button").forEach(b=>b.onclick=async()=>{
     if(b.dataset.v===WHO) return;
     try{ const s=swReg && await swReg.pushManager.getSubscription(); if(s){ await act("push.unsub",{endpoint:s.endpoint}); await s.unsubscribe(); } }catch(e){}
-    WHO=b.dataset.v; LS.set("nd-who",WHO); payer=null; m.remove(); await checkPush(); refresh(true);
+    WHO=b.dataset.v; LS.set("nd-who",WHO); m.remove(); await checkPush(); refresh(true);
   });
-  m.querySelectorAll("#cur button").forEach(b=>b.onclick=async()=>{ if(await act("cfg.currency",{currency:b.dataset.v})) m.remove(); });
+  on("#locon",e=>shareLocation(e.currentTarget).then(ok=>ok&&m.remove()));
+  on("#locup",e=>shareLocation(e.currentTarget).then(ok=>ok&&m.remove()));
+  on("#locoff",async()=>{ if(await act("loc.clear",{})){ m.remove(); toast("Position retirée"); } });
   on("#out",()=>{ m.remove(); logout(); });
 }
 
