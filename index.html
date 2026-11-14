@@ -547,6 +547,27 @@ async function shareLink(url,text){
   try{ await navigator.clipboard.writeText(url); toast("Lien copié 📋"); }catch(e){ prompt("Copie ce lien :",url); }
 }
 
+/* ================= Changer d'espace (utile dans l'appli installée) ================= */
+function switchSpaceSheet(){
+  const m=sheet(`<h2>🔄 Changer d'espace</h2>
+    <p>Colle ici le <b>lien de votre espace</b> (ou le lien d'<b>invitation</b> reçu). Dans l'appli installée sur l'écran d'accueil, c'est la façon d'ouvrir un autre espace.</p>
+    <input type="text" id="sl" placeholder="https://…/?c=…  ou  …/?invite=…" autocomplete="off" autocapitalize="off" spellcheck="false" style="margin-top:10px">
+    <button class="btn" id="sgo" style="margin-top:12px">Ouvrir</button>
+    ${CID!=="main"?`<button class="btn ghost" id="smain" style="margin-top:10px">Revenir à l'espace principal</button>`:""}
+    <p class="faint" style="font-size:13px;margin-top:12px">Espace actuel : <b>${esc(Object.values(PEOPLE).join(" & ")||CID)}</b></p>`);
+  const go=(kind,v)=>{ m.remove(); if(kind==="c"){ LS.set("nd-cid",v); location.href=v==="main"?"/":"/?c="+v; } else location.href="/?invite="+v; };
+  m.querySelector("#sgo").onclick=()=>{
+    const raw=m.querySelector("#sl").value.trim(); if(!raw) return toast("Colle un lien");
+    let c=null, inv=null;
+    try{ const u=new URL(raw,location.origin); c=u.searchParams.get("c"); inv=u.searchParams.get("invite"); }catch(e){}
+    if(!c && !inv){ const t=raw.toLowerCase().replace(/[^a-z0-9]/g,""); if(t.length===8) inv=t; else if(t.length>=6) c=t; }
+    if(inv) return go("invite",inv.toLowerCase());
+    if(c && /^(main|[a-z0-9]{6,16})$/.test(c.toLowerCase())) return go("c",c.toLowerCase());
+    toast("Lien non reconnu");
+  };
+  const sm=m.querySelector("#smain"); if(sm) sm.onclick=()=>go("c","main");
+}
+
 /* ================= Création d'un espace (nouveau couple, sur invitation) ================= */
 function createSpaceScreen(invite){
   app.innerHTML=`<div class="solo fadein">
@@ -687,7 +708,9 @@ function loginScreen(){
     <form class="card stack" id="f" style="margin-top:22px">
       <input type="password" id="c" placeholder="Votre code secret" autocomplete="current-password">
       <button class="btn">Entrer</button>
-    </form></div>`;
+    </form>
+    <button class="btn ghost" id="sw2" style="margin-top:6px">🔄 Autre espace ou invitation</button></div>`;
+  $("#sw2").onclick=switchSpaceSheet;
   $("#c").focus();
   $("#f").onsubmit=async e=>{
     e.preventDefault();
@@ -2000,6 +2023,7 @@ function settings(){
       <div class="card" style="margin:0"><div class="eyebrow">💞 Notre espace</div>
         <p style="margin:0 0 10px;color:var(--text)">Envoie ce lien à ${esc(nm(other()))} pour qu'elle/il vous rejoigne (avec votre code secret).</p>
         <button class="btn ghost" id="sharespace">Partager le lien de notre espace</button></div>
+      <div class="row"><button class="btn ghost grow" id="chcode">🔑 Changer notre code</button><button class="btn ghost grow" id="chspace">🔄 Changer d'espace</button></div>
       ${CID==="main"?`<button class="btn ghost" id="adminbtn">🛡️ Administration</button>`:""}
       <button class="btn ghost" id="inst">📲 Installer l'appli sur l'écran d'accueil</button>
       <button class="btn ghost" id="out">Se déconnecter</button>
@@ -2012,6 +2036,14 @@ function settings(){
   on("#inst",()=>{ m.remove(); installHelp(false); });
   on("#sharespace",()=>shareLink(location.origin+(CID==="main"?"/":"/?c="+CID),"Rejoins notre espace Nous Deux 💕"));
   on("#adminbtn",()=>{ m.remove(); adminScreen(); });
+  on("#chspace",()=>{ m.remove(); switchSpaceSheet(); });
+  on("#chcode",async()=>{
+    const a=prompt("Nouveau code secret de votre espace (4 caractères min.) :"); if(a===null) return;
+    if(a.trim().length<4) return toast("4 caractères minimum");
+    const b=prompt("Confirme le nouveau code :"); if(b===null) return;
+    if(a.trim()!==b.trim()) return toast("Les deux codes sont différents");
+    if(await act("auth.change",{newCode:a.trim()})){ CODE=a.trim(); LS.set(lsk("nd-code"),CODE); m.remove(); toast("Code changé 🔑 Donne le nouveau code à "+nm(other())); refresh(true); }
+  });
   m.querySelectorAll("#sw button").forEach(b=>b.onclick=async()=>{
     if(b.dataset.v===WHO) return;
     try{ const s=swReg && await swReg.pushManager.getSubscription(); if(s){ await act("push.unsub",{endpoint:s.endpoint}); await s.unsubscribe(); } }catch(e){}

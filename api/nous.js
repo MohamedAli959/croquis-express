@@ -750,6 +750,14 @@ const ACTIONS = {
     if (missed && b.who === x.from) return notify(req, x.to, { title: `📞 Appel manqué de ${PEOPLE[x.from]}`, body: "Rappelle-le/la vite 💕", tag: "call", url: "/" });
   },
 
+  // 🔑 Changer le code secret de l'espace (les téléphones qui ont l'ancien code sont déconnectés)
+  "auth.change": async (b) => {
+    const pw = String(b.newCode || "").trim();
+    if (pw.length < 4) fail(400, "Le code doit faire au moins 4 caractères.");
+    const salt = crypto.randomBytes(16).toString("hex");
+    await db([["SET", K.auth, JSON.stringify({ salt, hash: hashCode(salt, pw) })]]);
+  },
+
   "push.sub": async (b) => {
     const s = b.sub || {};
     if (typeof s.endpoint !== "string" || !/^https:\/\//.test(s.endpoint) || !s.keys || !s.keys.p256dh || !s.keys.auth) fail(400, "Abonnement invalide.");
@@ -911,7 +919,7 @@ async function handleSpace(req, res, q, b0) {
       if (!fn) fail(400, "Action inconnue.");
       extra = (await fn(b, d, req)) || {};
       if (ACTIVE.has(b.action)) await db([["HSET", K.act, `${who}:${day}`, "1"]]);
-      d = await loadAll(req, code);
+      d = await loadAll(req, b.action === "auth.change" ? String(b.newCode || "").trim() : code);
     }
     return send(res, 200, { ...view(d, who, day), call: callView(await getCall(), who), pushed: extra.sent, drawn: extra.drawn, callId: extra.call });
   }
