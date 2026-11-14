@@ -487,8 +487,9 @@ async function act(action, data, btn){
 }
 setInterval(()=>{ if(!document.hidden && D) refresh(); }, 15000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden && D){ refresh(); autoLocation(); } });
-document.addEventListener("focusout",()=>setTimeout(()=>{ if(pendingRender && !typing()) render(true); },150));
-const typing=()=>{ const a=document.activeElement; return a && /INPUT|TEXTAREA/.test(a.tagName) && a.value; };
+document.addEventListener("focusout",()=>setTimeout(()=>{ if(pendingRender && !typing()) render(); },300));
+// Un champ est en cours d'utilisation (clavier ou calendrier ouvert) : on ne redessine pas l'écran
+const typing=()=>{ const a=document.activeElement; return !!a && (/TEXTAREA|SELECT/.test(a.tagName) || (a.tagName==="INPUT" && !/^(checkbox|radio|button|submit|file)$/.test(a.type))); };
 function logout(msg){ CODE=null; D=null; LS.del(lsk("nd-code")); LS.del("nd-cid"); CID="main"; history.replaceState(null,"","/"); welcomeScreen("login"); if(msg) toast(msg); }
 
 /* ================= Notifications push ================= */
@@ -822,6 +823,20 @@ function shell(){
   $("#callV").onclick=()=>startCall(true);
 }
 const unread=()=>D.notes.filter(n=>n.from!==WHO && !n.read).length;
+function snapshotForm(){
+  const page=$("#page"); if(!page) return null;
+  const vals={}, open=[];
+  page.querySelectorAll("input[id],textarea[id],select[id]").forEach(el=>{
+    if(el.type==="checkbox"||el.type==="radio") vals[el.id]={c:el.checked};
+    else if(el.type!=="file" && el.value) vals[el.id]={v:el.value};
+  });
+  page.querySelectorAll("details[id][open]").forEach(d=>open.push(d.id));
+  return {vals,open};
+}
+function restoreForm(k){
+  for(const id of k.open){ const d=document.getElementById(id); if(d) d.open=true; }
+  for(const [id,x] of Object.entries(k.vals)){ const el=document.getElementById(id); if(!el) continue; if("c" in x) el.checked=x.c; else el.value=x.v; }
+}
 function render(force){
   if(!D || !$("#page")) return;
   if(!force && typing()){ pendingRender=true; return; }
@@ -839,7 +854,10 @@ function render(force){
   checkMovie();
   checkIncomingCall(D.call);
   const y=window.scrollY;
+  // rafraîchissement automatique : on garde ce qui a été tapé et les sections ouvertes
+  const keep=force?null:snapshotForm();
   ({home:homeTab,notes:notesTab,memories:memoriesTab,letters:lettersTab,question:questionTab})[tab]();
+  if(keep) restoreForm(keep);
   if(!force) window.scrollTo(0,y);
   if(openMem && $("#memsheet")) fillMemory(openMem);
 }
