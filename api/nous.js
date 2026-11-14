@@ -31,6 +31,7 @@
  *   nd:songs         hash   id -> chanson de « Notre playlist »
  *   nd:sleep         hash   personne -> {s: "sleep"|"awake", t}
  *   nd:act           hash   "personne:AAAA-MM-JJ" -> 1 (a envoyé quelque chose ce jour-là, pour la série)
+ *   nd:call          appel en cours (offre/réponse WebRTC), expire après 2 h
  *   nd:avatar:ID     photo de profil (affichée sur la carte) ; l'id actuel est dans nd:cfg « avatar_personne »
  *   nd:qa            hash   "AAAA-MM-JJ:personne" -> réponse à la question du jour
  *   nd:fail:IP       compteur d'essais de code ratés (15 min)
@@ -112,7 +113,7 @@ const K = {
   auth: "nd:auth", vapid: "nd:vapid", subs: "nd:subs", cfg: "nd:cfg", tz: "nd:tz",
   notes: "nd:notes", moods: "nd:moods", dates: "nd:dates", mem: "nd:mem", mnotes: "nd:mnotes",
   photo: id => `nd:photo:${id}`, thumb: id => `nd:thumb:${id}`,
-  doodle: id => `nd:doodle:${id}`, snaps: "nd:snaps", snap: id => `nd:snap:${id}`, snapt: id => `nd:snapt:${id}`, avatar: id => `nd:avatar:${id}`, voice: id => `nd:voice:${id}`, sched: "nd:sched", story: "nd:story", storyimg: id => `nd:storyimg:${id}`, songs: "nd:songs", sleep: "nd:sleep", act: "nd:act", letters: "nd:letters", jar: "nd:jar", thinks: "nd:thinks", lastthink: "nd:lastthink", loc: "nd:loc",
+  doodle: id => `nd:doodle:${id}`, snaps: "nd:snaps", snap: id => `nd:snap:${id}`, snapt: id => `nd:snapt:${id}`, avatar: id => `nd:avatar:${id}`, voice: id => `nd:voice:${id}`, sched: "nd:sched", call: "nd:call", story: "nd:story", storyimg: id => `nd:storyimg:${id}`, songs: "nd:songs", sleep: "nd:sleep", act: "nd:act", letters: "nd:letters", jar: "nd:jar", thinks: "nd:thinks", lastthink: "nd:lastthink", loc: "nd:loc",
   qa: "nd:qa", fail: ip => `nd:fail:${ip}`,
 };
 const newId = () => Date.now().toString(36) + crypto.randomBytes(4).toString("hex");
@@ -167,6 +168,34 @@ async function freshSnaps(list) {
   const old = list.filter(x => x.t < limit);
   if (old.length) await db(old.map(x => ["HDEL", K.snaps, x.id]));
   return list.filter(x => x.t >= limit);
+}
+
+/* ================= Appels (WebRTC) ================= */
+function iceServers() {
+  const list = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }];
+  const e = process.env;
+  if (e.TURN_URLS && e.TURN_USERNAME && e.TURN_CREDENTIAL)
+    list.push({ urls: e.TURN_URLS.split(",").map(x => x.trim()).filter(Boolean), username: e.TURN_USERNAME, credential: e.TURN_CREDENTIAL });
+  return list;
+}
+async function checkCode(req, code) {
+  const [auth, fails] = await db([["GET", K.auth], ["GET", K.fail(ipOf(req))]]);
+  if (!auth) fail(409, "SETUP");
+  if (Number(fails) >= 10) fail(429, "Trop d'essais ratés. Réessaie dans 15 minutes.");
+  const a = JSON.parse(auth);
+  if (!crypto.timingSafeEqual(Buffer.from(hashCode(a.salt, code || "")), Buffer.from(a.hash))) fail(401, "Code secret incorrect.");
+}
+async function getCall() {
+  const [c] = await db([["GET", K.call]]);
+  const x = c ? JSON.parse(c) : null;
+  if (x && x.state === "ringing" && Date.now() - x.t > 60000) x.state = "missed"; // personne n'a répondu
+  return x;
+}
+// Ce que chacun voit de l'appel : l'offre pour celui qui est appelé, la réponse pour celui qui appelle
+function callView(x, who) {
+  if (!x || (x.state !== "ringing" && x.state !== "accepted" && Date.now() - (x.endedAt || x.t) > 15000)) return null;
+  const { offer, answer, ...rest } = x;
+  return { ...rest, ...(x.to === who && x.state === "ringing" ? { offer } : {}), ...(x.from === who && x.state === "accepted" ? { answer } : {}) };
 }
 
 /* ================= Série de jours ================= */
@@ -571,6 +600,32 @@ const ACTIONS = {
   },
   "movie.stop": async (b) => { await db([["HDEL", K.cfg, "movie"]]); },
 
+  // 📞 Appels audio / vidéo
+  "call.start": async (b, d, req) => {
+    const offer = String(b.offer || "");
+    if (!offer.startsWith("v=0") || offer.length > 60000) fail(400, "Appel impossible.");
+    const cur = await getCall();
+    if (cur && cur.state === "accepted" && Date.now() - cur.t < 4 * 3600000) fail(409, "Un appel est déjà en cours.");
+    const x = { id: newId(), from: b.who, to: otherOf(b.who), video: !!b.video, state: "ringing", offer, answer: null, t: Date.now() };
+    await db([["SET", K.call, JSON.stringify(x), "EX", 7200]]);
+    const n = await notify(req, x.to, { title: `${x.video ? "🎥" : "📞"} ${PEOPLE[b.who]} t'appelle`, body: x.video ? "Appel vidéo — touche pour répondre" : "Appel audio — touche pour répondre", tag: "call", url: "/?call=1" });
+    return { ...n, call: x.id };
+  },
+  "call.answer": async (b) => {
+    const x = await getCall();
+    const answer = String(b.answer || "");
+    if (!x || x.id !== b.id || x.to !== b.who || x.state !== "ringing") fail(409, "Cet appel n'est plus disponible.");
+    if (!answer.startsWith("v=0") || answer.length > 60000) fail(400, "Réponse invalide.");
+    await db([["SET", K.call, JSON.stringify({ ...x, state: "accepted", answer, acceptedAt: Date.now() }), "EX", 7200]]);
+  },
+  "call.end": async (b, d, req) => {
+    const x = await getCall();
+    if (!x || x.id !== b.id || x.state === "ended") return;
+    const missed = x.state === "ringing" || x.state === "missed";
+    await db([["SET", K.call, JSON.stringify({ ...x, offer: null, answer: null, state: "ended", endedAt: Date.now(), endedBy: b.who, declined: missed && b.who === x.to }), "EX", 600]]);
+    if (missed && b.who === x.from) return notify(req, x.to, { title: `📞 Appel manqué de ${PEOPLE[x.from]}`, body: "Rappelle-le/la vite 💕", tag: "call", url: "/" });
+  },
+
   "push.sub": async (b) => {
     const s = b.sub || {};
     if (typeof s.endpoint !== "string" || !/^https:\/\//.test(s.endpoint) || !s.keys || !s.keys.p256dh || !s.keys.auth) fail(400, "Abonnement invalide.");
@@ -588,13 +643,19 @@ const ACTIONS = {
 };
 
 // actions qui comptent pour la série de jours
-const ACTIVE = new Set(["note.add", "mood.set", "think", "snap.add", "qa.answer", "letter.add", "jar.add", "mem.add", "mem.note", "sleep.set"]);
+const ACTIVE = new Set(["call.start", "call.answer", "note.add", "mood.set", "think", "snap.add", "qa.answer", "letter.add", "jar.add", "mem.add", "mem.note", "sleep.set"]);
 
 /* ================= HTTP ================= */
 module.exports = async function handler(req, res) {
   try {
     const q = Object.fromEntries(new URL(req.url, "http://localhost").searchParams);
     const code = req.headers["x-code"];
+
+    // Suivi rapide de l'appel en cours (seulement le code secret et l'appel : 3 lectures)
+    if (req.method === "GET" && q.call) {
+      await checkCode(req, code);
+      return send(res, 200, { call: callView(await getCall(), q.who), ice: iceServers(), now: Date.now() });
+    }
 
     // Tâche planifiée : livre les surprises arrivées à échéance (ne renvoie aucune donnée)
     if (req.method === "GET" && q.tick) return send(res, 200, { delivered: await deliverDue(req) });
@@ -659,7 +720,7 @@ module.exports = async function handler(req, res) {
       if (ACTIVE.has(b.action)) await db([["HSET", K.act, `${who}:${day}`, "1"]]);
       d = await loadAll(req, code);
     }
-    return send(res, 200, { ...view(d, who, day), pushed: extra.sent, drawn: extra.drawn });
+    return send(res, 200, { ...view(d, who, day), call: callView(await getCall(), who), pushed: extra.sent, drawn: extra.drawn, callId: extra.call });
   } catch (e) {
     if (e.status === 409 && e.message === "SETUP") return send(res, 409, { error: "SETUP" });
     return sendError(res, e);

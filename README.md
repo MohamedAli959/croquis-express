@@ -26,6 +26,7 @@ Fonctionnalités inspirées des applis pour couples à distance (Paired, Togethe
 - 🌙 **Bonne nuit / ☀️ Bonjour** : on voit quand l'autre dort.
 - 🔥 **Série** de jours d'affilée où vous vous êtes envoyé quelque chose.
 - 🎬 **Soirée film** : compte à rebours synchronisé pour lancer le film en même temps.
+- 📞 **Appels audio et vidéo** (WebRTC, de téléphone à téléphone) : notification « t'appelle », accepter/refuser, micro, caméra, changement de caméra. Pour les réseaux mobiles restrictifs, un serveur TURN peut être ajouté via les variables Vercel `TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL`.
 - 🔔 **Notifications push** (Android, et iPhone une fois l'appli ajoutée à l'écran d'accueil, iOS 16.4+).
 
 ## Structure
