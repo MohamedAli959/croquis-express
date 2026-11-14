@@ -23,6 +23,8 @@
  *   nd:lastthink     hash   personne -> horodatage de sa dernière pensée
  *   nd:loc           hash   personne -> position approximative (pour la distance et la météo)
  *   nd:doodle:ID     dessin JPEG (base64) envoyé dans les petits mots
+ *   nd:snaps         hash   id -> snap (photo du jour, visible 24 h)
+ *   nd:snap:ID       photo du snap (expire après 24 h)   nd:snapt:ID  miniature
  *   nd:qa            hash   "AAAA-MM-JJ:personne" -> réponse à la question du jour
  *   nd:fail:IP       compteur d'essais de code ratés (15 min)
  */
@@ -33,7 +35,7 @@ try { webpush = require("web-push"); } catch (e) { /* notifications désactivée
 
 const PEOPLE = { dali: "Dali", rahma: "Rahma" };
 const START = "2025-09-15";
-const MAX_PHOTO = 950000, MAX_THUMB = 200000, MAX_DOODLE = 400000; // tailles max en base64
+const MAX_PHOTO = 950000, MAX_THUMB = 200000, MAX_DOODLE = 400000, SNAP_TTL = 86400; // tailles max en base64
 
 const QUESTIONS = [
   "Quel est ton souvenir préféré de nous deux ?",
@@ -103,7 +105,7 @@ const K = {
   auth: "nd:auth", vapid: "nd:vapid", subs: "nd:subs", cfg: "nd:cfg", tz: "nd:tz",
   notes: "nd:notes", moods: "nd:moods", dates: "nd:dates", mem: "nd:mem", mnotes: "nd:mnotes",
   photo: id => `nd:photo:${id}`, thumb: id => `nd:thumb:${id}`,
-  doodle: id => `nd:doodle:${id}`, letters: "nd:letters", jar: "nd:jar", thinks: "nd:thinks", lastthink: "nd:lastthink", loc: "nd:loc",
+  doodle: id => `nd:doodle:${id}`, snaps: "nd:snaps", snap: id => `nd:snap:${id}`, snapt: id => `nd:snapt:${id}`, letters: "nd:letters", jar: "nd:jar", thinks: "nd:thinks", lastthink: "nd:lastthink", loc: "nd:loc",
   qa: "nd:qa", fail: ip => `nd:fail:${ip}`,
 };
 const newId = () => Date.now().toString(36) + crypto.randomBytes(4).toString("hex");
@@ -151,13 +153,22 @@ async function notify(req, to, payload) {
   return { sent };
 }
 
+/* ================= Snaps ================= */
+// Ne garde que les snaps de moins de 24 h (et efface les plus anciens)
+async function freshSnaps(list) {
+  const limit = Date.now() - SNAP_TTL * 1000;
+  const old = list.filter(x => x.t < limit);
+  if (old.length) await db(old.map(x => ["HDEL", K.snaps, x.id]));
+  return list.filter(x => x.t >= limit);
+}
+
 /* ================= Lecture de toutes les données ================= */
 async function loadAll(req, code) {
-  const [auth, fails, cfg, tz, notes, moods, dates, mem, mnotes, qa, subs, letters, jar, thinks, lastthink, loc] = await db([
+  const [auth, fails, cfg, tz, notes, moods, dates, mem, mnotes, qa, subs, letters, jar, thinks, lastthink, loc, snaps] = await db([
     ["GET", K.auth], ["GET", K.fail(ipOf(req))],
     ["HGETALL", K.cfg], ["HGETALL", K.tz], ["HGETALL", K.notes], ["HGETALL", K.moods], ["HGETALL", K.dates],
     ["HGETALL", K.mem], ["HGETALL", K.mnotes], ["HGETALL", K.qa], ["HGETALL", K.subs],
-    ["HGETALL", K.letters], ["HGETALL", K.jar], ["HGETALL", K.thinks], ["HGETALL", K.lastthink], ["HGETALL", K.loc],
+    ["HGETALL", K.letters], ["HGETALL", K.jar], ["HGETALL", K.thinks], ["HGETALL", K.lastthink], ["HGETALL", K.loc], ["HGETALL", K.snaps],
   ]);
   if (!auth) fail(409, "SETUP");
   if (Number(fails) >= 10) fail(429, "Trop d'essais ratés. Réessaie dans 15 minutes.");
@@ -173,6 +184,7 @@ async function loadAll(req, code) {
     mem: parseHash(mem), mnotes: parseHash(mnotes), qa: hobj(qa),
     subs: Object.keys(hobj(subs)),
     letters: parseHash(letters), jar: parseHash(jar), thinks: hobj(thinks), lastthink: hobj(lastthink), loc: hobj(loc),
+    snaps: await freshSnaps(parseHash(snaps)),
   };
 }
 
@@ -225,6 +237,7 @@ function view(d, who, day) {
       total: Object.entries(d.thinks).reduce((a, [k, v]) => a + Number(v || 0), 0),
     },
     locs,
+    snaps: d.snaps.sort((a, b) => b.t - a.t).map(x => ({ ...x, tk: photoToken(d.authHash, x.id) })),
     moods,
     dates: d.dates.sort((a, b) => a.date.localeCompare(b.date)),
     memories,
@@ -399,6 +412,39 @@ const ACTIONS = {
   },
   "loc.clear": async (b) => { await db([["HDEL", K.loc, b.who]]); },
 
+  // Snaps : photos du jour avec une petite note, visibles 24 h
+  "snap.add": async (b, d, req) => {
+    const photo = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.photo || ""));
+    const thumb = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.thumb || ""));
+    if (!photo || !thumb) fail(400, "Photo invalide.");
+    if (photo[1].length > MAX_PHOTO || thumb[1].length > MAX_THUMB) fail(413, "Photo trop lourde.");
+    const x = { id: newId(), from: b.who, caption: txt(b.caption, 140), pos: Math.min(85, Math.max(10, Math.round(Number(b.pos) || 62))), t: Date.now(), seenAt: null, kept: false };
+    await db([["SET", K.snap(x.id), photo[1], "EX", SNAP_TTL + 3600]]);
+    await db([["SET", K.snapt(x.id), thumb[1], "EX", SNAP_TTL + 3600], ["HSET", K.snaps, x.id, JSON.stringify(x)]]);
+    return notify(req, otherOf(b.who), { title: `📸 ${PEOPLE[b.who]} t'a envoyé un snap`, body: x.caption || "Ouvre vite, il disparaît dans 24 h ⏳", tag: "snap-" + x.id, url: "/?snap=" + x.id });
+  },
+  "snap.seen": async (b, d, req) => {
+    const x = d.snaps.find(y => y.id === b.id);
+    if (!x || x.from === b.who || x.seenAt) return;
+    await db([["HSET", K.snaps, x.id, JSON.stringify({ ...x, seenAt: Date.now() })]]);
+    return notify(req, x.from, { title: `👀 ${PEOPLE[b.who]} a vu ton snap`, body: x.caption || "", tag: "snapseen-" + x.id, url: "/" });
+  },
+  "snap.keep": async (b, d, req) => {
+    const x = d.snaps.find(y => y.id === b.id);
+    if (!x) fail(404, "Ce snap a disparu.");
+    if (x.kept) return;
+    const [full, th] = await db([["GET", K.snap(x.id)], ["GET", K.snapt(x.id)]]);
+    if (!full) fail(404, "Ce snap a disparu.");
+    const m = { id: newId(), by: x.from, caption: x.caption, date: new Date(x.t).toISOString().slice(0, 10), t: Date.now(), fromSnap: true };
+    await db([["SET", K.photo(m.id), full]]);
+    await db([["SET", K.thumb(m.id), th || full], ["HSET", K.mem, m.id, JSON.stringify(m)], ["HSET", K.snaps, x.id, JSON.stringify({ ...x, kept: true })]]);
+    if (b.who !== x.from) return notify(req, x.from, { title: `💾 ${PEOPLE[b.who]} a gardé ton snap`, body: "Il est maintenant dans vos souvenirs 💕", tag: "snapkeep-" + x.id, url: "/?tab=memories" });
+  },
+  "snap.del": async (b, d) => {
+    const x = d.snaps.find(y => y.id === b.id);
+    if (x && x.from === b.who) await db([["HDEL", K.snaps, x.id], ["DEL", K.snap(x.id)], ["DEL", K.snapt(x.id)]]);
+  },
+
   "push.sub": async (b) => {
     const s = b.sub || {};
     if (typeof s.endpoint !== "string" || !/^https:\/\//.test(s.endpoint) || !s.keys || !s.keys.p256dh || !s.keys.auth) fail(400, "Abonnement invalide.");
@@ -432,7 +478,7 @@ module.exports = async function handler(req, res) {
     if (req.method === "GET" && q.photo) {
       const id = String(q.photo);
       if (!/^[a-z0-9]{8,40}$/.test(id)) fail(400, "Photo invalide.");
-      const key = q.s === "full" ? K.photo(id) : q.s === "doodle" ? K.doodle(id) : K.thumb(id);
+      const key = { full: K.photo(id), doodle: K.doodle(id), snap: K.snap(id), snapt: K.snapt(id) }[q.s] || K.thumb(id);
       const [auth, data] = await db([["GET", K.auth], ["GET", key]]);
       if (!auth || q.k !== photoToken(JSON.parse(auth).hash, id)) fail(403, "Accès refusé.");
       if (!data) fail(404, "Photo introuvable.");

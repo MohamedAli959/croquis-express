@@ -11,6 +11,7 @@ Fonctionnalités inspirées des applis pour couples à distance (Paired, Togethe
 - ✈️ **Retrouvailles** : compte à rebours jusqu'au jour où vous vous revoyez.
 - 🕐 **Heure chez l'autre** quand vous n'êtes pas dans le même fuseau horaire.
 - 😊 **Humeurs** à envoyer (dont 😈 « Envie de toi »), reçues en notification.
+- 📸 **Snaps du jour** : photo (appareil ou galerie) avec une petite note par-dessus, notification, « vu », disparaît après 24 h sauf si on la garde dans les souvenirs.
 - 💗 **« Je pense à toi »** : un cœur à toucher, l'autre reçoit une notification et voit le compteur du jour.
 - 💌 **Petits mots** avec « vu » et cœur, et **dessins à la main**, reçus en notification.
 - ✉️ **Lettres « Ouvre quand… »** (tu es triste, je te manque…) et **lettres datées** qui ne s'ouvrent qu'à une date précise.

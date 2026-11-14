@@ -219,6 +219,30 @@
   .sw.on{outline:3px solid #fff;outline-offset:2px}
   .bubble img.doodle{display:block;width:100%;max-width:260px;border-radius:12px;background:#fff;margin-bottom:4px}
 
+  /* snaps */
+  .snapstrip{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 2px;scrollbar-width:none}
+  .snapstrip::-webkit-scrollbar{display:none}
+  .snapit{flex:none;width:70px;border:0;background:none;cursor:pointer;color:var(--text);padding:0;text-align:center}
+  .snapit .ring{width:66px;height:66px;border-radius:50%;padding:3px;margin:0 auto;background:rgba(255,255,255,.18)}
+  .snapit.new .ring{background:conic-gradient(from 210deg,var(--rose),var(--peach),var(--gold),var(--rose))}
+  .snapit .ring img,.snapit .ring div{width:100%;height:100%;border-radius:50%;object-fit:cover;border:3px solid var(--night);display:grid;place-items:center;background:var(--glass2);font-size:26px}
+  .snapit small{display:block;font-size:11px;margin-top:5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .snapit.new small{color:#fff;font-weight:700}
+  .snapfull{position:fixed;inset:0;z-index:40;background:#000;display:flex;flex-direction:column;animation:fade .2s}
+  .snapfull .stage{position:relative;flex:1;overflow:hidden;display:grid;place-items:center}
+  .snapfull .stage img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+  .snapcap{position:absolute;left:0;right:0;background:rgba(0,0,0,.55);color:#fff;text-align:center;font-size:19px;font-weight:500;padding:10px 16px;line-height:1.3;
+           word-break:break-word;transform:translateY(-50%);touch-action:none}
+  input.snapcap{border:0;border-radius:0;outline:none;font-family:var(--sans);width:100%}
+  .snaptop{position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;gap:10px;padding:calc(14px + env(safe-area-inset-top)) 16px 30px;
+           background:linear-gradient(rgba(0,0,0,.6),transparent);color:#fff}
+  .snaptop .grow{flex:1}
+  .snapbar{height:3px;border-radius:3px;background:rgba(255,255,255,.3);position:absolute;top:calc(6px + env(safe-area-inset-top));left:16px;right:16px;overflow:hidden}
+  .snapbar i{display:block;height:100%;background:#fff}
+  .snapbot{display:flex;gap:10px;padding:12px 16px calc(14px + env(safe-area-inset-bottom));background:#000}
+  .snapbot .btn{flex:1}
+  .closex{width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:22px;cursor:pointer}
+
   /* fenêtres, toasts */
   .modal{position:fixed;inset:0;background:rgba(8,4,18,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:20;animation:fade .2s}
   .modal .sheet{width:100%;max-width:560px;max-height:94dvh;overflow:auto;background:linear-gradient(170deg,#24123c,#35173f);border:1px solid var(--stroke);border-bottom:0;
@@ -444,14 +468,15 @@ async function start(){
   try{ D=await api("GET"); }catch(e){ if(e.status===401) return logout(e.message); toast(e.message); return; }
   shell(); await checkPush(); render(true);
   const p=new URLSearchParams(location.search);
-  if(p.get("tab")) openDeepLink(new URL(location.href));
+  if(p.get("tab")||p.get("snap")) openDeepLink(new URL(location.href));
 }
 function openDeepLink(u){
-  const t=u.searchParams.get("tab"), m=u.searchParams.get("m");
+  const t=u.searchParams.get("tab"), m=u.searchParams.get("m"), sn=u.searchParams.get("snap");
   history.replaceState(null,"","/");
   if(t && ["home","notes","memories","letters","question"].includes(t)){ tab=t; LS.set("nd-tab",tab); }
   render(true); window.scrollTo(0,0);
   if(m){ const x=D.memories.find(y=>y.id===m); if(x) memoryView(x.id); }
+  if(sn){ tab="home"; LS.set("nd-tab",tab); render(true); refresh(true).then(()=>viewSnap(sn)); return; }
   refresh(true);
 }
 
@@ -476,6 +501,8 @@ function render(force){
     b.classList.toggle("on",b.dataset.tab===tab);
     const old=b.querySelector(".badge"); if(old) old.remove();
     if(b.dataset.tab==="notes" && u && tab!=="notes") b.insertAdjacentHTML("beforeend",`<span class="badge">${u}</span>`);
+    const sn=D.snaps.filter(snapNew).length;
+    if(b.dataset.tab==="home" && sn && tab!=="home") b.insertAdjacentHTML("beforeend",`<span class="badge">${sn}</span>`);
   });
   checkIncomingThink();
   const y=window.scrollY;
@@ -558,6 +585,17 @@ function homeTab(){
       <div class="pillnote">${isMonthDay?`🎉 Joyeux ${monthsLabel(totalM)} !`:`💫 ${monthsLabel(totalM+1)} ensemble ${daysBetween(t,nextM)===1?"demain":"le "+fmtDay(nextM)}`}</div>
     </section>
 
+    <div class="card" style="padding:16px 14px">
+      <div class="eyebrow" style="padding:0 4px">Snaps du jour <span class="faint" style="letter-spacing:0;text-transform:none">disparaissent après 24 h</span></div>
+      <div class="snapstrip">
+        <button class="snapit" id="newsnap"><div class="ring"><div>📸</div></div><small>Nouveau</small></button>
+        ${D.snaps.slice().sort((a,b)=>snapNew(b)-snapNew(a)||b.t-a.t).map(x=>`<button class="snapit ${snapNew(x)?"new":""}" data-snap="${x.id}">
+          <div class="ring"><img src="${API}?photo=${x.id}&k=${x.tk}&s=snapt" alt=""></div>
+          <small>${x.from===WHO?"Toi":esc(nm(x.from))} · ${shortAgo(x.t)}</small></button>`).join("")}
+      </div>
+      ${D.snaps.length?"":`<p class="faint" style="margin:8px 4px 0">Envoie à ${esc(nm(o))} un instant de ta journée 📸</p>`}
+    </div>
+
     ${reunion}
 
     <div class="card glow thinkcard">
@@ -611,6 +649,8 @@ function homeTab(){
     </div>`;
   $("#setreunion").onclick=reunionPicker;
   $("#think").onclick=e=>sendThink(e);
+  $("#newsnap").onclick=newSnap;
+  $$("[data-snap]").forEach(b=>b.onclick=()=>viewSnap(b.dataset.snap));
   if($("#geoshare")) $("#geoshare").onclick=e=>shareLocation(e.currentTarget);
   fillWeather();
   $("#moodbtn").onclick=moodPicker;
@@ -779,6 +819,86 @@ function fillMemory(id){
   };
   box.querySelector("#delmem").onclick=()=>{ if(confirm("Supprimer ce souvenir et ses petits mots ?")) act("mem.del",{id}).then(r=>{ if(r){ const md=box.closest(".modal"); if(md) md.remove(); } }); };
   box.querySelectorAll("[data-delmn]").forEach(b=>b.onclick=()=>act("mem.notedel",{id:b.dataset.delmn}).then(()=>fillMemory(id)));
+}
+
+/* ================= Snaps ================= */
+const snapNew=x=>x.from!==WHO && !x.seenAt;
+const shortAgo=t=>{ const m=Math.floor((Date.now()-t)/60000); return m<1?"maintenant":m<60?m+" min":Math.floor(m/60)+" h"; };
+function newSnap(){
+  const box=document.createElement("div"); box.className="snapfull";
+  box.innerHTML=`
+    <input type="file" id="scam" accept="image/*" capture="environment" hidden>
+    <input type="file" id="sgal" accept="image/*" hidden>
+    <div class="stage" id="sstage">
+      <div class="snaptop"><div class="grow"><b>Snap pour ${esc(nm(other()))}</b></div><button class="closex" id="sx">×</button></div>
+      <div class="stack" id="spick" style="width:min(320px,85%)">
+        <div class="center" style="font-size:56px">📸</div>
+        <p class="center" style="color:#fff;margin:0 0 6px">Un instant de ta journée, avec un petit mot. Il disparaît après 24 h.</p>
+        <button class="btn" id="bcam">Prendre une photo</button>
+        <button class="btn ghost" id="bgal">Choisir dans la galerie</button>
+      </div>
+    </div>
+    <div class="snapbot" id="sbot" style="display:none"><button class="btn ghost" id="sretry" style="flex:none;width:auto">↺</button><button class="btn" id="ssend">Envoyer à ${esc(nm(other()))} ➤</button></div>`;
+  document.body.appendChild(box);
+  const close=()=>box.remove();
+  box.querySelector("#sx").onclick=close;
+  box.querySelector("#bcam").onclick=()=>box.querySelector("#scam").click();
+  box.querySelector("#bgal").onclick=()=>box.querySelector("#sgal").click();
+  let prepared=null, pos=62;
+  const onFile=async f=>{
+    if(!f) return;
+    const st=box.querySelector("#sstage");
+    try{
+      prepared=await preparePhoto(f);
+      st.innerHTML=`<div class="snaptop"><div class="grow"><b>Snap pour ${esc(nm(other()))}</b><div style="font-size:12px;opacity:.8">Glisse la note pour la déplacer</div></div><button class="closex" id="sx2">×</button></div>
+        <img src="${prepared.full.data}" alt=""><input class="snapcap" id="scap" maxlength="140" placeholder="Écris un petit mot…" style="top:${pos}%">`;
+      st.querySelector("#sx2").onclick=close;
+      box.querySelector("#sbot").style.display="";
+      const cap=st.querySelector("#scap");
+      let drag=null;
+      cap.addEventListener("pointerdown",e=>{ drag={y:e.clientY,p:pos,moved:false}; });
+      window.addEventListener("pointermove",e=>{ if(!drag) return; const dy=e.clientY-drag.y; if(Math.abs(dy)>6) drag.moved=true;
+        if(drag.moved){ pos=Math.min(85,Math.max(10,drag.p+dy/st.clientHeight*100)); cap.style.top=pos+"%"; } });
+      window.addEventListener("pointerup",()=>{ if(drag && !drag.moved) cap.focus(); drag=null; });
+    }catch(e){ toast(e.message); }
+  };
+  box.querySelector("#scam").onchange=e=>onFile(e.target.files[0]);
+  box.querySelector("#sgal").onchange=e=>onFile(e.target.files[0]);
+  box.querySelector("#sretry").onclick=()=>{ close(); newSnap(); };
+  box.querySelector("#ssend").onclick=async e=>{
+    if(!prepared) return;
+    e.target.textContent="Envoi…";
+    const cap=box.querySelector("#scap");
+    const r=await act("snap.add",{photo:prepared.full.data,thumb:prepared.thumb.data,caption:cap?cap.value:"",pos:Math.round(pos)},e.target);
+    if(r){ close(); hearts(8); toast(sentMsg(r)); }
+  };
+}
+function viewSnap(id){
+  const x=D.snaps.find(y=>y.id===id);
+  if(!x) return toast("Ce snap a disparu ⏳");
+  const mine=x.from===WHO, left=Math.max(0,x.t+86400000-Date.now()), lh=Math.ceil(left/3600000);
+  const box=document.createElement("div"); box.className="snapfull";
+  box.innerHTML=`
+    <div class="stage">
+      <div class="snapbar"><i style="width:${Math.round(left/86400000*100)}%"></i></div>
+      <div class="snaptop"><div class="grow"><b>${mine?"Ton snap":esc(nm(x.from))}</b><div style="font-size:12px;opacity:.8">${ago(x.t)} · disparaît dans ${lh>1?lh+" h":"moins d'1 h"}</div></div><button class="closex" id="vx">×</button></div>
+      <img src="${API}?photo=${x.id}&k=${x.tk}&s=snap" alt="">
+      ${x.caption?`<div class="snapcap" style="top:${x.pos||62}%">${esc(x.caption)}</div>`:""}
+    </div>
+    <div class="snapbot">${mine
+      ?`<div class="grow" style="color:#fff;align-self:center">${x.seenAt?`👀 Vu ${ago(x.seenAt)}`:"Pas encore vu"}</div><button class="btn ghost" id="vkeep" style="flex:none;width:auto">${x.kept?"✓ Gardé":"💾 Garder"}</button><button class="btn ghost" id="vdel" style="flex:none;width:auto">🗑</button>`
+      :`<button class="btn ghost" id="vkeep">${x.kept?"✓ Dans nos souvenirs":"💾 Garder en souvenir"}</button><button class="btn" id="vreply">📸 Répondre</button>`}</div>`;
+  document.body.appendChild(box);
+  const close=()=>box.remove();
+  box.querySelector("#vx").onclick=close;
+  box.querySelector(".stage img").onclick=close;
+  const keep=box.querySelector("#vkeep");
+  if(keep) keep.onclick=async()=>{ if(x.kept) return; const r=await act("snap.keep",{id},keep); if(r){ keep.textContent="✓ Gardé"; x.kept=true; toast("Ajouté à vos souvenirs 💾"); } };
+  const del=box.querySelector("#vdel");
+  if(del) del.onclick=async()=>{ if(confirm("Supprimer ce snap ?") && await act("snap.del",{id})) close(); };
+  const rep=box.querySelector("#vreply");
+  if(rep) rep.onclick=()=>{ close(); newSnap(); };
+  if(!mine && !x.seenAt) api("POST",{action:"snap.seen",id}).then(j=>{ D=j; render(); }).catch(()=>{});
 }
 
 /* ================= Je pense à toi ================= */
