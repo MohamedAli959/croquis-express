@@ -1,0 +1,9 @@
+{
+  "name": "nous-deux",
+  "private": true,
+  "description": "L'appli de Dali & Rahma",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "web-push": "3.6.7"
+  }
+}
