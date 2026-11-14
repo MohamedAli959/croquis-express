@@ -652,8 +652,10 @@ function adminScreen(){
           ${c.id==="main"?` <span class="pillnote" style="margin:0 0 0 6px;padding:2px 8px;font-size:11px">ton espace</span>`:""}
           ${c.disabled?` <span class="pillnote" style="margin:0 0 0 6px;padding:2px 8px;font-size:11px;color:var(--gold)">désactivé</span>`:""}
           <div class="faint" style="font-size:12px;margin-top:4px">${c.id==="main"?"espace principal":"créé le "+dt(c.created)} · dernière visite ${c.lastSeen?ago(c.lastSeen):"jamais"}<br>${c.notes||0} mots · ${c.memories||0} souvenirs · ensemble depuis le ${dt(Date.parse(c.start))}</div></div></div>
-        ${c.id==="main"?"":`<div class="row" style="margin-top:12px"><button class="btn small ghost" data-dis="${c.id}" data-v="${c.disabled?0:1}">${c.disabled?"Réactiver":"Désactiver"}</button>
-          <button class="btn small ghost" data-del="${c.id}" data-n="${esc(Object.values(c.names).join(" & "))}" style="color:#B3261E">Supprimer</button></div>`}
+        <div class="faint" style="font-size:12px;margin-top:6px;word-break:break-all">${esc(location.origin+(c.id==="main"?"/":"/?c="+c.id))}</div>
+        <div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-link="${c.id}">🔗 Lien de l'espace</button>
+        ${c.id==="main"?"":`<button class="btn small ghost" data-dis="${c.id}" data-v="${c.disabled?0:1}">${c.disabled?"Réactiver":"Désactiver"}</button>
+          <button class="btn small ghost" data-del="${c.id}" data-n="${esc(Object.values(c.names).join(" & "))}" style="color:#B3261E">Supprimer</button>`}</div>
       </div>`).join("")}
       ${used.length?`<details style="margin-top:12px"><summary>Invitations utilisées (${used.length})</summary>${used.map(i=>`<div class="date"><div class="d"><b>${esc(i.names||i.note||i.code)}</b><div class="faint" style="font-size:12px">utilisée le ${dt(i.used)}</div></div></div>`).join("")}</details>`:""}
       <div class="row" style="margin-top:16px"><button class="btn small ghost" id="apw">Changer le mot de passe admin</button><button class="btn small ghost" id="aout">Se déconnecter</button></div>
@@ -661,6 +663,7 @@ function adminScreen(){
     const share=code=>shareLink(location.origin+"/?invite="+code,"Créez votre espace à deux sur Nous Deux 💕");
     box.querySelector("#inew").onclick=async e=>{ e.target.disabled=true; try{ const r=await adminApi("admin.invite",{note:box.querySelector("#inote").value}); await load(); share(r.code); }catch(err){ toast(err.message); e.target.disabled=false; } };
     box.querySelectorAll("[data-ishare]").forEach(b=>b.onclick=()=>share(b.dataset.ishare));
+    box.querySelectorAll("[data-link]").forEach(b=>b.onclick=()=>shareLink(location.origin+(b.dataset.link==="main"?"/":"/?c="+b.dataset.link),"Le lien de votre espace Nous Deux 💕"));
     box.querySelectorAll("[data-idel]").forEach(b=>b.onclick=async()=>{ if(confirm("Annuler cette invitation ?")){ await adminApi("admin.invite.del",{code:b.dataset.idel}).catch(e=>toast(e.message)); load(); } });
     box.querySelectorAll("[data-dis]").forEach(b=>b.onclick=async()=>{ await adminApi("admin.disable",{id:b.dataset.dis,disabled:b.dataset.v==="1"}).catch(e=>toast(e.message)); load(); });
     box.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{
