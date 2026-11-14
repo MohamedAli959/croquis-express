@@ -171,13 +171,31 @@ async function freshSnaps(list) {
 }
 
 /* ================= Appels (WebRTC) ================= */
-function iceServers() {
+// Serveurs pour établir l'appel : STUN public + relais TURN (indispensable sur beaucoup de réseaux mobiles).
+// Relais au choix, configuré dans Vercel → Settings → Environment Variables :
+//   - Metered (gratuit 50 Go/mois) : METERED_DOMAIN (ex. nousdeux.metered.live) + METERED_API_KEY
+//   - ou n'importe quel TURN : TURN_URLS (séparés par des virgules) + TURN_USERNAME + TURN_CREDENTIAL
+let meteredCache = null;
+async function iceServers() {
   const list = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }];
   const e = process.env;
+  if (e.METERED_DOMAIN && e.METERED_API_KEY) {
+    try {
+      if (!meteredCache || Date.now() - meteredCache.t > 3600000) {
+        const dom = e.METERED_DOMAIN.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+        const r = await fetch(`https://${dom}/api/v1/turn/credentials?apiKey=${encodeURIComponent(e.METERED_API_KEY)}`);
+        if (!r.ok) throw new Error("Metered HTTP " + r.status);
+        const servers = await r.json();
+        if (Array.isArray(servers) && servers.length) meteredCache = { t: Date.now(), servers };
+      }
+      if (meteredCache) list.push(...meteredCache.servers);
+    } catch (err) { console.error("TURN Metered", err.message); }
+  }
   if (e.TURN_URLS && e.TURN_USERNAME && e.TURN_CREDENTIAL)
     list.push({ urls: e.TURN_URLS.split(",").map(x => x.trim()).filter(Boolean), username: e.TURN_USERNAME, credential: e.TURN_CREDENTIAL });
   return list;
 }
+const hasRelay = list => list.some(x => [].concat(x.urls || x.url || []).some(u => /^turns?:/.test(u)));
 async function checkCode(req, code) {
   const [auth, fails] = await db([["GET", K.auth], ["GET", K.fail(ipOf(req))]]);
   if (!auth) fail(409, "SETUP");
@@ -654,7 +672,8 @@ module.exports = async function handler(req, res) {
     // Suivi rapide de l'appel en cours (seulement le code secret et l'appel : 3 lectures)
     if (req.method === "GET" && q.call) {
       await checkCode(req, code);
-      return send(res, 200, { call: callView(await getCall(), q.who), ice: iceServers(), now: Date.now() });
+      const ice = await iceServers();
+      return send(res, 200, { call: callView(await getCall(), q.who), ice, relay: hasRelay(ice), now: Date.now() });
     }
 
     // Tâche planifiée : livre les surprises arrivées à échéance (ne renvoie aucune donnée)

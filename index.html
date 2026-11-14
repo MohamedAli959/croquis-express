@@ -1263,17 +1263,17 @@ function doodleSheet(){
 }
 
 /* ================= Appels audio / vidéo (WebRTC) ================= */
-let CALL=null, ICE=[{urls:["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"]}];
+let RELAY=false, CALL=null, ICE=[{urls:["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"]}];
 const seenCalls=new Set();
 async function callApi(){
   const r=await fetch(`${API}?call=1&who=${WHO}`,{headers:{"X-Code":CODE||""},cache:"no-store"});
   const j=await r.json(); if(!r.ok) throw new Error(j.error||"Erreur");
-  if(j.ice) ICE=j.ice; if(j.now) CLOCK=j.now-Date.now();
+  if(j.ice) ICE=j.ice; if(j.now) CLOCK=j.now-Date.now(); RELAY=!!j.relay;
   return j.call;
 }
 const waitIce=pc=>new Promise(res=>{
   if(pc.iceGatheringState==="complete") return res();
-  const t=setTimeout(res,3000);
+  const t=setTimeout(res,RELAY?5000:3000);
   pc.addEventListener("icegatheringstatechange",()=>{ if(pc.iceGatheringState==="complete"){ clearTimeout(t); res(); } });
 });
 const getMedia=(video,facing="user")=>navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},
@@ -1284,7 +1284,7 @@ function newPC(){
   pc.onconnectionstatechange=()=>{
     if(!CALL || CALL.pc!==pc) return;
     if(pc.connectionState==="connected" && CALL.state!=="live"){ CALL.state="live"; CALL.since=Date.now(); if(navigator.vibrate) navigator.vibrate(60); callUI(); }
-    if(pc.connectionState==="failed") endCall(true,"La connexion a échoué (réseau trop restrictif ?)");
+    if(pc.connectionState==="failed") endCall(true,RELAY?"La connexion a échoué, réessaie dans un instant":"La connexion a échoué : votre réseau bloque les appels directs. Il faut activer le relais (voir le README).");
     if(pc.connectionState==="disconnected") setTimeout(()=>{ if(CALL && CALL.pc===pc && pc.connectionState==="disconnected") endCall(true,"Appel coupé"); },8000);
   };
   return pc;
