@@ -42,6 +42,10 @@
  *   nd:seen          hash   id -> dernière activité
  *   nd:invites       hash   code -> invitation créée par l'admin (usage unique)
  *   nd:admin         {salt, hash} du mot de passe administrateur
+ *   nd:login         hash   empreinte(date de rencontre + code) -> id de l'espace (connexion sans lien)
+ *   nd:loginrev      hash   id -> empreinte actuelle (pour la mettre à jour ou la supprimer)
+ *   nd:settings      réglages globaux (inscriptions ouvertes ou fermées)
+ *   nd:pepper        secret aléatoire mêlé aux empreintes de connexion
  *   nd:vapid         clés des notifications (communes à tous les espaces)
  */
 const crypto = require("crypto");
@@ -129,7 +133,8 @@ const QUESTIONS = [
 
 /* ================= Outils ================= */
 // Clés globales (communes à tous les espaces)
-const G = { vapid: "nd:vapid", couples: "nd:couples", seen: "nd:seen", invites: "nd:invites", admin: "nd:admin", fail: ip => `nd:fail:${ip}` };
+const G = { vapid: "nd:vapid", couples: "nd:couples", seen: "nd:seen", invites: "nd:invites", admin: "nd:admin", login: "nd:login", loginrev: "nd:loginrev",
+  settings: "nd:settings", pepper: "nd:pepper", fail: ip => `nd:fail:${ip}` };
 // Clés de l'espace en cours : préfixe « nd: » pour l'espace principal, « nd:c:<id>: » pour les autres
 const K = { vapid: G.vapid, fail: G.fail };
 for (const name of ["auth", "subs", "cfg", "tz", "notes", "moods", "dates", "mem", "mnotes", "snaps", "sched", "call", "story", "songs", "sleep", "act", "letters", "jar", "thinks", "lastthink", "loc", "qa"])
@@ -225,6 +230,62 @@ async function checkCode(req, code) {
   const a = JSON.parse(auth);
   if (!crypto.timingSafeEqual(Buffer.from(hashCode(a.salt, code || "")), Buffer.from(a.hash))) fail(401, "Code secret incorrect.");
 }
+// Le code est-il celui de l'espace en cours ? (sans compter d'essai raté)
+async function codeOk(code) {
+  const [auth] = await db([["GET", K.auth]]);
+  if (!auth) return false;
+  const a = JSON.parse(auth);
+  return crypto.timingSafeEqual(Buffer.from(hashCode(a.salt, code || "")), Buffer.from(a.hash));
+}
+// Empreinte de connexion : date de rencontre + code (jamais stockés en clair)
+let PEPPER = null;
+async function loginIdx(start, code) {
+  if (!PEPPER) {
+    const [p] = await db([["GET", G.pepper]]);
+    if (p) PEPPER = p;
+    else { await db([["SET", G.pepper, crypto.randomBytes(16).toString("hex"), "NX"]]); PEPPER = (await db([["GET", G.pepper]]))[0]; }
+  }
+  return crypto.createHash("sha256").update(PEPPER + ":" + start + ":" + String(code).trim().toLowerCase()).digest("hex");
+}
+// Associe (date, code) à l'espace en cours ; refuse si un autre couple a déjà exactement la même combinaison
+async function setLoginIndex(code) {
+  const idx = await loginIdx(START(), code), id = ctx().id;
+  const [cur, old] = await db([["HGET", G.login, idx], ["HGET", G.loginrev, id]]);
+  if (cur && cur !== id) fail(409, "Ce code n'est pas disponible avec votre date de rencontre, choisis-en un autre.");
+  const cmds = [];
+  if (old && old !== idx) cmds.push(["HDEL", G.login, old]);
+  if (cur !== id) cmds.push(["HSET", G.login, idx, id]);
+  if (old !== idx) cmds.push(["HSET", G.loginrev, id, idx]);
+  if (cmds.length) await db(cmds);
+}
+async function spaceLogin(req, b) {
+  const fk = G.fail("login:" + ipOf(req));
+  const [f] = await db([["GET", fk]]);
+  if (Number(f) >= 10) fail(429, "Trop d'essais ratés. Réessaie dans 15 minutes.");
+  if (!isDay(b.start)) fail(400, "Indique votre date de rencontre.");
+  const code = String(b.code || "").trim();
+  if (!code) fail(400, "Indique votre code confidentiel.");
+  const [found] = await db([["HGET", G.login, await loginIdx(b.start, code)]]);
+  const id = found || (b.start === MAIN.start ? "main" : null);
+  let sp = null, ok = false;
+  if (id) {
+    try { sp = await getSpace(id); } catch (e) { sp = null; }
+    if (sp && sp.start === b.start) ok = await inSpace(sp, () => codeOk(code));
+  }
+  if (!ok) {
+    const [n] = await db([["INCR", fk]]);
+    if (n === 1) await db([["EXPIRE", fk, 900]]);
+    fail(401, "Date de rencontre ou code confidentiel incorrect.");
+  }
+  if (sp.disabled) fail(403, "Cet espace a été désactivé par l'administrateur.");
+  if (!found) await inSpace(sp, () => setLoginIndex(code).catch(() => {}));
+  return { ok: true, c: sp.id, people: sp.names, members: sp.members };
+}
+async function getSettings() {
+  const [raw] = await db([["GET", G.settings]]);
+  return raw ? JSON.parse(raw) : { signupOpen: true };
+}
+
 async function getCall() {
   const [c] = await db([["GET", K.call]]);
   const x = c ? JSON.parse(c) : null;
@@ -292,6 +353,7 @@ const ADMIN = {
     return {
       couples: spaces.map((sp, i) => ({ id: sp.id, names: sp.names, members: sp.members, start: sp.start, created: sp.created, disabled: sp.disabled,
         lastSeen: Number(sn[sp.id] || 0) || null, notes: stats[i * 3], memories: stats[i * 3 + 1], ready: !!stats[i * 3 + 2] })),
+      signupOpen: (await getSettings()).signupOpen,
       invites: Object.entries(hobj(inv)).map(([code, v]) => ({ code, ...JSON.parse(v) })).sort((a, b) => b.created - a.created),
     };
   },
@@ -311,8 +373,12 @@ const ADMIN = {
     if (b.id === "main") fail(400, "L'espace principal ne peut pas être supprimé.");
     const sp = await getSpace(String(b.id));
     const n = await deleteSpaceKeys(sp.prefix);
-    await db([["HDEL", G.couples, sp.id], ["HDEL", G.seen, sp.id]]);
+    const [idx] = await db([["HGET", G.loginrev, sp.id]]);
+    await db([["HDEL", G.couples, sp.id], ["HDEL", G.seen, sp.id], ["HDEL", G.loginrev, sp.id], ...(idx ? [["HDEL", G.login, idx]] : [])]);
     return { deleted: n };
+  },
+  "admin.signup": async (b) => {
+    await db([["SET", G.settings, JSON.stringify({ ...(await getSettings()), signupOpen: !!b.open })]]);
   },
   "admin.password": async (b) => {
     const pw = String(b.newPassword || "").trim();
@@ -753,7 +819,8 @@ const ACTIONS = {
   // 🔑 Changer le code secret de l'espace (les téléphones qui ont l'ancien code sont déconnectés)
   "auth.change": async (b) => {
     const pw = String(b.newCode || "").trim();
-    if (pw.length < 4) fail(400, "Le code doit faire au moins 4 caractères.");
+    if (pw.length < 6) fail(400, "Le code doit faire au moins 6 caractères.");
+    await setLoginIndex(pw); // vérifie qu'aucun autre couple n'a la même date + code, puis met à jour la connexion
     const salt = crypto.randomBytes(16).toString("hex");
     await db([["SET", K.auth, JSON.stringify({ salt, hash: hashCode(salt, pw) })]]);
   },
@@ -790,8 +857,9 @@ module.exports = async function handler(req, res) {
       return send(res, 200, { delivered: n });
     }
 
-    // Création d'un nouvel espace avec une invitation de l'admin
+    // Inscription (nouvel espace) et connexion par date de rencontre + code
     if (req.method === "POST" && b0.action === "space.create") return send(res, 200, await createSpace(b0));
+    if (req.method === "POST" && b0.action === "space.login") return send(res, 200, await spaceLogin(req, b0));
 
     // Administration (hors de tout espace)
     if (req.method === "POST" && String(b0.action || "").startsWith("admin.")) {
@@ -813,24 +881,31 @@ module.exports = async function handler(req, res) {
 
 async function createSpace(b) {
   const inv = String(b.invite || "").trim().toLowerCase();
-  const [raw] = await db([["HGET", G.invites, inv]]);
-  if (!raw) fail(403, "Invitation invalide ou déjà utilisée.");
-  const iv = JSON.parse(raw);
-  if (iv.used) fail(403, "Cette invitation a déjà été utilisée.");
+  let iv = null;
+  if (inv) {
+    const [raw] = await db([["HGET", G.invites, inv]]);
+    if (!raw) fail(403, "Invitation invalide.");
+    iv = JSON.parse(raw);
+    if (iv.used) fail(403, "Cette invitation a déjà été utilisée.");
+  } else if (!(await getSettings()).signupOpen) fail(403, "Les inscriptions sont fermées pour le moment.");
   const n1 = txt(b.name1, 20), n2 = txt(b.name2, 20), pw = String(b.code || "").trim();
   if (!n1 || !n2) fail(400, "Indiquez vos deux prénoms.");
-  if (!isDay(b.start)) fail(400, "Indiquez la date du début de votre histoire.");
-  if (pw.length < 4) fail(400, "Le code secret doit faire au moins 4 caractères.");
-  const [lk] = await db([["SET", "nd:l:invite:" + inv, "1", "EX", 60, "NX"]]);
-  if (lk !== "OK") fail(409, "Création déjà en cours, réessaie.");
+  if (n1.toLowerCase() === n2.toLowerCase()) fail(400, "Indiquez deux prénoms différents.");
+  if (!isDay(b.start) || Date.parse(b.start) > Date.now() + 86400000) fail(400, "Indiquez votre date de rencontre.");
+  if (pw.length < 6) fail(400, "Le code confidentiel doit faire au moins 6 caractères.");
   const id = genCode(10);
-  const meta = { names: { a: n1, b: n2 }, members: ["a", "b"], start: b.start, created: Date.now(), invite: inv, disabled: false };
+  const idx = await loginIdx(b.start, pw);
+  const [free] = await db([["HSETNX", G.login, idx, id]]);
+  if (!free) fail(409, "Ce code n'est pas disponible avec cette date de rencontre, choisissez-en un autre.");
+  const meta = { names: { a: n1, b: n2 }, members: ["a", "b"], start: b.start, created: Date.now(), invite: inv || null, disabled: false };
   const salt = crypto.randomBytes(16).toString("hex");
-  await db([
+  const cmds = [
     ["HSET", G.couples, id, JSON.stringify(meta)],
     ["SET", `nd:c:${id}:auth`, JSON.stringify({ salt, hash: hashCode(salt, pw) })],
-    ["HSET", G.invites, inv, JSON.stringify({ ...iv, used: Date.now(), space: id, names: `${n1} & ${n2}` })],
-  ]);
+    ["HSET", G.loginrev, id, idx],
+  ];
+  if (iv) cmds.push(["HSET", G.invites, inv, JSON.stringify({ ...iv, used: Date.now(), space: id, names: `${n1} & ${n2}` })]);
+  await db(cmds);
   return { ok: true, c: id, people: meta.names, members: meta.members };
 }
 
@@ -863,7 +938,7 @@ async function handleSpace(req, res, q, b0) {
     if (req.method === "GET" && q.status) {
       const [auth, admin] = await db([["GET", K.auth], ["EXISTS", G.admin]]);
       const vapid = webpush && auth ? (await vapidKeys()).publicKey : null;
-      return send(res, 200, { configured: !!auth, people: { ...ctx().names }, members: ctx().members, space: ctx().id, vapid, adminReady: !!admin });
+      return send(res, 200, { configured: !!auth, people: { ...ctx().names }, members: ctx().members, space: ctx().id, vapid, adminReady: !!admin, signupOpen: (await getSettings()).signupOpen });
     }
 
     // Photos : protégées par un jeton dérivé du code secret
@@ -907,6 +982,7 @@ async function handleSpace(req, res, q, b0) {
     let d = await loadAll(req, code);
     if (!(who in ctx().names)) return send(res, 200, { ok: true, people: { ...ctx().names }, members: ctx().members }); // code bon, personne pas encore choisie
     if (req.method === "GET") await db([["HSET", G.seen, ctx().id, Date.now()]]);
+    if (req.method === "GET" && b.reg) await setLoginIndex(code).catch(() => {});
 
     // fuseau horaire du téléphone (pour afficher l'heure chez l'autre)
     const tz = txt(b.tz, 60);

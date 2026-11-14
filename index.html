@@ -451,7 +451,7 @@ const URLP=new URLSearchParams(location.search);
 let CID=(URLP.get("c")||LS.get("nd-cid")||"main").toLowerCase();
 if(!/^(main|[a-z0-9]{6,16})$/.test(CID)) CID="main";
 const lsk=k=>CID==="main"?k:k+"-"+CID;
-let CODE=LS.get(lsk("nd-code")), WHO=LS.get(lsk("nd-who")), D=null, PEOPLE={}, MEMBERS=[], VAPID=null, ADMIN_READY=false;
+let CODE=LS.get(lsk("nd-code")), WHO=LS.get(lsk("nd-who")), D=null, PEOPLE={}, MEMBERS=[], VAPID=null, ADMIN_READY=false, SIGNUP_OPEN=true, REG=false;
 const P1=()=>MEMBERS[0], P2=()=>MEMBERS[1];
 let tab=LS.get("nd-tab")||"home", pendingRender=false, openMem=null, CLOCK=0, memSub=LS.get("nd-memsub")||"photos";
 const sNow=()=>Date.now()+CLOCK;
@@ -463,6 +463,7 @@ async function api(method, body){
   const opts={method, headers:{"X-Code":CODE||""}, cache:"no-store"};
   let url=API;
   const base={c:CID, who:WHO||"", day:ymd(new Date()), tz:MY_TZ};
+  if(method==="GET" && REG && WHO){ base.reg=1; REG=false; }
   if(method==="GET") url+="?"+new URLSearchParams(base);
   else{ opts.headers["Content-Type"]="application/json"; opts.body=JSON.stringify({...base,...body}); }
   const r=await fetch(url,opts);
@@ -488,7 +489,7 @@ setInterval(()=>{ if(!document.hidden && D) refresh(); }, 15000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden && D){ refresh(); autoLocation(); } });
 document.addEventListener("focusout",()=>setTimeout(()=>{ if(pendingRender && !typing()) render(true); },150));
 const typing=()=>{ const a=document.activeElement; return a && /INPUT|TEXTAREA/.test(a.tagName) && a.value; };
-function logout(msg){ CODE=null; D=null; LS.del(lsk("nd-code")); loginScreen(); if(msg) toast(msg); }
+function logout(msg){ CODE=null; D=null; LS.del(lsk("nd-code")); LS.del("nd-cid"); CID="main"; history.replaceState(null,"","/"); welcomeScreen("login"); if(msg) toast(msg); }
 
 /* ================= Notifications push ================= */
 const PUSH_OK="serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
@@ -640,7 +641,9 @@ function adminScreen(){
     const pend=j.invites.filter(i=>!i.used), used=j.invites.filter(i=>i.used);
     box.innerHTML=`
       <h2>🛡️ Administration</h2><p style="margin-top:4px">${j.couples.length} espace${j.couples.length>1?"s":""} · ${pend.length} invitation${pend.length>1?"s":""} en attente</p>
-      <div class="card" style="margin-top:14px"><div class="eyebrow">Inviter un couple</div>
+      <div class="card" style="margin-top:14px"><div class="row"><div class="grow"><b>Inscriptions</b><div class="faint" style="font-size:13px">${j.signupOpen?"Ouvertes : tout couple peut créer son espace":"Fermées : seulement sur invitation"}</div></div>
+        <button class="btn small ${j.signupOpen?"ghost":""}" id="asign">${j.signupOpen?"Fermer":"Ouvrir"}</button></div></div>
+      <div class="card"><div class="eyebrow">Inviter un couple (si les inscriptions sont fermées)</div>
         <input type="text" id="inote" maxlength="60" placeholder="Pour qui ? (optionnel, ex : Sami & Lina)">
         <button class="btn" id="inew" style="margin-top:10px">Créer une invitation</button>
         ${pend.map(i=>`<div class="date"><div class="d"><b>${esc(i.note||"Invitation")}</b><div class="faint" style="font-size:12px">créée le ${dt(i.created)} · code ${esc(i.code)}</div></div>
@@ -661,6 +664,7 @@ function adminScreen(){
       <div class="row" style="margin-top:16px"><button class="btn small ghost" id="apw">Changer le mot de passe admin</button><button class="btn small ghost" id="aout">Se déconnecter</button></div>
       <p class="faint" style="font-size:12px;margin-top:12px">Tous les espaces partagent la même base Upstash et le même relais d'appels : surveille les quotas gratuits si les couples se multiplient.</p>`;
     const share=code=>shareLink(location.origin+"/?invite="+code,"Créez votre espace à deux sur Nous Deux 💕");
+    box.querySelector("#asign").onclick=async()=>{ await adminApi("admin.signup",{open:!j.signupOpen}).catch(e=>toast(e.message)); load(); };
     box.querySelector("#inew").onclick=async e=>{ e.target.disabled=true; try{ const r=await adminApi("admin.invite",{note:box.querySelector("#inote").value}); await load(); share(r.code); }catch(err){ toast(err.message); e.target.disabled=false; } };
     box.querySelectorAll("[data-ishare]").forEach(b=>b.onclick=()=>share(b.dataset.ishare));
     box.querySelectorAll("[data-link]").forEach(b=>b.onclick=()=>shareLink(location.origin+(b.dataset.link==="main"?"/":"/?c="+b.dataset.link),"Le lien de votre espace Nous Deux 💕"));
@@ -704,27 +708,75 @@ function setupScreen(){
     }catch(err){ toast(err.message); e.target.disabled=false; }
   };
 }
-function loginScreen(){
+function loginScreen(){ welcomeScreen("login"); }
+
+/* ================= Accueil : se connecter / créer son espace ================= */
+function welcomeScreen(mode,invite){
+  invite=invite||URLP.get("invite")||"";
   app.innerHTML=`<div class="solo fadein">
-    <div class="center"><div style="font-size:52px">🔐</div>
-      <h1>Nous Deux</h1><p style="font-size:18px">${esc(PEOPLE[P1()])} <em>&</em> ${esc(PEOPLE[P2()])}</p></div>
-    <form class="card stack" id="f" style="margin-top:22px">
-      <input type="password" id="c" placeholder="Votre code secret" autocomplete="current-password">
-      <button class="btn">Entrer</button>
-    </form>
-    <button class="btn ghost" id="sw2" style="margin-top:6px">🔄 Autre espace ou invitation</button></div>`;
-  $("#sw2").onclick=switchSpaceSheet;
-  $("#c").focus();
-  $("#f").onsubmit=async e=>{
-    e.preventDefault();
-    const btn=e.target.querySelector("button"); btn.disabled=true;
-    CODE=$("#c").value.trim();
-    try{
-      await api("GET"); LS.set(lsk("nd-code"),CODE); LS.set("nd-cid",CID);
-      if(WHO && PEOPLE[WHO]) start(); else whoScreen();
-    }catch(err){ CODE=null; toast(err.message); const f=$("#f"); f.classList.add("shake"); setTimeout(()=>f.classList.remove("shake"),400); btn.disabled=false; }
+    <div class="center"><div style="font-size:54px">💞</div><h1>Nous Deux</h1>
+      <p style="font-size:17px;margin-top:6px">Votre petit coin à deux, même à distance.</p></div>
+    <div class="seg" id="wtab" style="margin-top:22px"><button data-v="login">Se connecter</button><button data-v="signup">Créer notre espace</button></div>
+    <div id="wform"></div></div>`;
+  const setTab=v=>{ mode=v; $$("#wtab button").forEach(x=>x.classList.toggle("on",x.dataset.v===v)); (v==="login"?loginForm:signupForm)(); };
+  $$("#wtab button").forEach(b=>b.onclick=()=>setTab(b.dataset.v));
+  const enter=async(j,code,who)=>{
+    CID=j.c; LS.set("nd-cid",CID); CODE=code; LS.set(lsk("nd-code"),code); PEOPLE=j.people; MEMBERS=j.members;
+    history.replaceState(null,"",CID==="main"?"/":"/?c="+CID);
+    try{ const s2=await (await fetch(API+"?c="+CID+"&status=1",{cache:"no-store"})).json(); VAPID=s2.vapid; ADMIN_READY=!!s2.adminReady; }catch(e){}
+    WHO=who||LS.get(lsk("nd-who"));
+    if(WHO && MEMBERS.includes(WHO)) return start();
+    whoScreen();
   };
+  const loginForm=()=>{
+    $("#wform").innerHTML=`<form class="card stack" id="lf" style="margin-top:14px">
+      <label class="faint" style="font-size:13px;font-weight:600">Votre date de rencontre<input type="date" id="ld" style="margin-top:6px"></label>
+      <input type="password" id="lc" placeholder="Votre code confidentiel" autocomplete="current-password">
+      <button class="btn">Se connecter</button>
+      <p class="faint" style="margin:0;font-size:13px">La date de rencontre et le code choisis à l'inscription de votre couple.</p></form>`;
+    $("#lf").onsubmit=async e=>{
+      e.preventDefault();
+      const d=$("#ld").value, c=$("#lc").value.trim();
+      if(!d) return toast("Indique votre date de rencontre"); if(!c) return toast("Indique votre code confidentiel");
+      const btn=e.target.querySelector("button"); btn.disabled=true;
+      try{
+        const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"space.login",start:d,code:c})});
+        const j=await r.json(); if(!r.ok) throw new Error(j.error||"Erreur");
+        await enter(j,c);
+      }catch(err){ toast(err.message); const f=$("#lf"); if(f){ f.classList.add("shake"); setTimeout(()=>f.classList.remove("shake"),400); } btn.disabled=false; }
+    };
+  };
+  const signupForm=()=>{
+    if(!SIGNUP_OPEN && !invite){ $("#wform").innerHTML=`<div class="card center" style="margin-top:14px"><div style="font-size:36px">🔒</div><p style="color:var(--text)">Les inscriptions sont fermées pour le moment.</p></div>`; return; }
+    $("#wform").innerHTML=`<form class="card stack" id="sf" style="margin-top:14px">
+      <div class="row"><input type="text" id="n1" class="grow" placeholder="Ton prénom" maxlength="20" autocomplete="given-name"><input type="text" id="n2" class="grow" placeholder="Son prénom" maxlength="20"></div>
+      <label class="faint" style="font-size:13px;font-weight:600">Votre date de rencontre<input type="date" id="st" max="${ymd(new Date())}" style="margin-top:6px"></label>
+      <input type="password" id="k1" placeholder="Code confidentiel (6 caractères min.)" autocomplete="new-password">
+      <input type="password" id="k2" placeholder="Confirme le code" autocomplete="new-password">
+      <button class="btn">Créer notre espace</button>
+      <p class="faint" style="margin:0;font-size:13px">Pour vous connecter, vous utiliserez tous les deux <b>votre date de rencontre</b> et <b>ce code</b>. Gardez-le entre vous.</p></form>`;
+    $("#sf").onsubmit=async e=>{
+      e.preventDefault();
+      const n1=$("#n1").value.trim(), n2=$("#n2").value.trim(), st=$("#st").value, k1=$("#k1").value.trim(), k2=$("#k2").value.trim();
+      if(!n1||!n2) return toast("Indiquez vos deux prénoms"); if(!st) return toast("Indiquez votre date de rencontre");
+      if(k1.length<6) return toast("Code : 6 caractères minimum"); if(k1!==k2) return toast("Les deux codes ne sont pas pareils");
+      const btn=e.target.querySelector("button"); btn.disabled=true;
+      try{
+        const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"space.create",invite,name1:n1,name2:n2,start:st,code:k1})});
+        const j=await r.json(); if(!r.ok) throw new Error(j.error||"Erreur");
+        LS.set((j.c==="main"?"nd-who":"nd-who-"+j.c),"a");
+        await enter(j,k1,"a");
+        const dd=st.split("-").reverse().join("/");
+        sheet(`<h2>🎉 Votre espace est prêt</h2>
+          <p>Pour rejoindre votre espace, <b>${esc(n2)}</b> ouvre l'appli, choisit <b>Se connecter</b> et entre :</p>
+          <div class="card" style="margin:12px 0"><b>Date de rencontre :</b> ${dd}<br><b>Code :</b> celui que vous venez de choisir</div>
+          <p class="faint" style="font-size:13px">Pense à installer l'appli sur ton écran d'accueil (⚙️ Réglages → Installer) et à activer les notifications.</p>`);
+      }catch(err){ toast(err.message); btn.disabled=false; }
+    };
+  };
+  setTab(mode==="signup"?"signup":"login");
 }
+
 function whoScreen(){
   app.innerHTML=`<div class="solo center fadein">
     <div style="font-size:52px">🥰</div><h1>Qui es-tu ?</h1>
@@ -735,6 +787,7 @@ function whoScreen(){
   $$("[data-w]").forEach(b=>b.onclick=()=>{ WHO=b.dataset.w; LS.set(lsk("nd-who"),WHO); LS.set("nd-cid",CID); start(); });
 }
 async function start(){
+  REG=true;
   app.innerHTML=`<p class="center" style="margin-top:44vh;font-size:30px">💕</p>`;
   try{ D=await api("GET"); }catch(e){ if(e.status===401) return logout(e.message); toast(e.message); return; }
   shell(); await checkPush(); render(true); autoLocation();
@@ -2024,9 +2077,9 @@ function settings(){
       <div class="card" style="margin:0"><div class="row" style="gap:14px"><div class="avatarbig" style="width:56px;height:56px;font-size:22px;${avatarUrl(WHO)?`background-image:url('${avatarUrl(WHO)}')`:""}">${avatarUrl(WHO)?"":esc(nm(WHO).slice(0,1))}</div>
         <div class="grow"><b>Ta photo sur la carte</b><div class="faint">${avatarUrl(WHO)?"Ajoutée ✓":"Pas encore de photo"}</div></div><button class="btn small ghost" id="avbtn">${avatarUrl(WHO)?"Changer":"Ajouter"}</button></div></div>
       <div class="card" style="margin:0"><div class="eyebrow">💞 Notre espace</div>
-        <p style="margin:0 0 10px;color:var(--text)">Envoie ce lien à ${esc(nm(other()))} pour qu'elle/il vous rejoigne (avec votre code secret).</p>
-        <button class="btn ghost" id="sharespace">Partager le lien de notre espace</button></div>
-      <div class="row"><button class="btn ghost grow" id="chcode">🔑 Changer notre code</button><button class="btn ghost grow" id="chspace">🔄 Changer d'espace</button></div>
+        <p style="margin:0 0 10px;color:var(--text)">Pour vous rejoindre, ${esc(nm(other()))} ouvre l'appli → <b>Se connecter</b> → votre <b>date de rencontre</b> (${esc((D&&D.start||"").split("-").reverse().join("/"))}) et votre <b>code</b>.</p>
+        <button class="btn ghost" id="sharespace">Envoyer le lien de l'appli</button></div>
+      <div class="row"><button class="btn ghost grow" id="chcode">🔑 Changer notre code</button><button class="btn ghost grow" id="chspace">🔄 Autre espace</button></div>
       ${CID==="main"?`<button class="btn ghost" id="adminbtn">🛡️ Administration</button>`:""}
       <button class="btn ghost" id="inst">📲 Installer l'appli sur l'écran d'accueil</button>
       <button class="btn ghost" id="out">Se déconnecter</button>
@@ -2037,12 +2090,12 @@ function settings(){
   on("#ptest",async e=>{ const r=await act("push.test",{},e.currentTarget); toast(r&&r.pushed?"Notification envoyée 🔔":"Aucune notification envoyée"); });
   on("#pinst",()=>{ m.remove(); installHelp(true); });
   on("#inst",()=>{ m.remove(); installHelp(false); });
-  on("#sharespace",()=>shareLink(location.origin+(CID==="main"?"/":"/?c="+CID),"Rejoins notre espace Nous Deux 💕"));
+  on("#sharespace",()=>shareLink(location.origin+"/","Rejoins-moi sur Nous Deux 💕 Connecte-toi avec notre date de rencontre et notre code."));
   on("#adminbtn",()=>{ m.remove(); adminScreen(); });
-  on("#chspace",()=>{ m.remove(); switchSpaceSheet(); });
+  on("#chspace",()=>{ m.remove(); logout(); });
   on("#chcode",async()=>{
-    const a=prompt("Nouveau code secret de votre espace (4 caractères min.) :"); if(a===null) return;
-    if(a.trim().length<4) return toast("4 caractères minimum");
+    const a=prompt("Nouveau code confidentiel (6 caractères min.) :"); if(a===null) return;
+    if(a.trim().length<6) return toast("6 caractères minimum");
     const b=prompt("Confirme le nouveau code :"); if(b===null) return;
     if(a.trim()!==b.trim()) return toast("Les deux codes sont différents");
     if(await act("auth.change",{newCode:a.trim()})){ CODE=a.trim(); LS.set(lsk("nd-code"),CODE); m.remove(); toast("Code changé 🔑 Donne le nouveau code à "+nm(other())); refresh(true); }
@@ -2065,11 +2118,11 @@ function settings(){
 (async function boot(){
   await Promise.race([initSW(), new Promise(r=>setTimeout(r,2500))]);
   try{
-    if(URLP.get("invite")) return createSpaceScreen(URLP.get("invite"));
+    if(URLP.get("invite")){ try{ const s0=await (await fetch(API+"?status=1",{cache:"no-store"})).json(); SIGNUP_OPEN=s0.signupOpen!==false; }catch(e){} return welcomeScreen("signup",URLP.get("invite")); }
     const r=await fetch(API+"?c="+CID+"&status=1",{cache:"no-store"}); const j=await r.json();
     if(r.status===404 && CID!=="main"){ LS.del("nd-cid"); CID="main"; history.replaceState(null,"","/"); location.reload(); return; }
     if(!r.ok) throw new Error(j.error||"Serveur indisponible");
-    PEOPLE=j.people||PEOPLE; MEMBERS=j.members||Object.keys(PEOPLE); VAPID=j.vapid||null; ADMIN_READY=!!j.adminReady;
+    PEOPLE=j.people||PEOPLE; MEMBERS=j.members||Object.keys(PEOPLE); VAPID=j.vapid||null; ADMIN_READY=!!j.adminReady; SIGNUP_OPEN=j.signupOpen!==false;
     if(CID!=="main") LS.set("nd-cid",CID);
     if(!j.configured) return setupScreen();
     if(!CODE) return loginScreen();

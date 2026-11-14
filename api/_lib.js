@@ -40,6 +40,7 @@ function memExec([cmd, k, ...a]) {
     case "HDEL": return e && e.v.delete(a[0]) ? 1 : 0;
     case "HGETALL": return e ? [...e.v].flat() : [];
     case "HGET": return e && e.v.has(a[0]) ? e.v.get(a[0]) : null;
+    case "HSETNX": { const h = memHash(k); if (h.v.has(a[0])) return 0; h.v.set(a[0], a[1]); return 1; }
     case "HLEN": return e ? e.v.size : 0;
     case "EXISTS": return e ? 1 : 0;
     case "SCAN": {

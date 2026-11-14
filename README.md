@@ -45,11 +45,14 @@ Les clés des notifications (VAPID) sont générées automatiquement au premier 
 
 ## Plusieurs couples (espaces)
 
-L'appli peut accueillir plusieurs couples, chacun dans son **espace** privé, avec ses propres données et son propre code secret.
+L'appli accueille plusieurs couples, chacun dans son **espace** privé (données séparées).
 
-- **Espace principal** (Dali & Rahma) : il garde ses données historiques (clés `nd:…`), rien n'a été déplacé.
-- **Autres espaces** : données séparées sous `nd:c:<id>:…`, lien d'accès `https://<site>/?c=<id>`.
-- **Administration** (⚙️ Réglages de l'espace principal → 🛡️ Administration) : mot de passe admin distinct du code du couple ;
-  création d'**invitations** à usage unique (`/?invite=<code>`), liste des espaces (dernière visite, nombre de mots et de souvenirs),
+- **Inscription** (accueil → « Créer notre espace ») : les deux prénoms, la **date de rencontre** et un **code confidentiel** (6 caractères min.).
+- **Connexion** (accueil → « Se connecter ») : **date de rencontre + code confidentiel**. Aucun lien à envoyer : l'appli retrouve l'espace
+  grâce à une empreinte chiffrée de la date et du code (`nd:login`). Deux couples ne peuvent pas avoir la même date avec le même code.
+  10 essais ratés bloquent la connexion 15 minutes.
+- **Espace principal** (Dali & Rahma) : ses données historiques (`nd:…`) n'ont pas bougé ; connexion avec le 15/09/2025 et votre code.
+- **Autres espaces** : données sous `nd:c:<id>:…`.
+- **Administration** (⚙️ Réglages de l'espace principal → 🛡️ Administration, mot de passe admin distinct) :
+  ouvrir ou fermer les inscriptions, invitations (quand les inscriptions sont fermées), liste des espaces,
   désactivation, réactivation et suppression définitive d'un espace.
-- Un nouveau couple ne peut créer son espace qu'avec une invitation de l'admin.
