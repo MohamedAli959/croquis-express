@@ -393,6 +393,22 @@ const ADMIN = {
   "admin.signup": async (b) => {
     await db([["SET", G.settings, JSON.stringify({ ...(await getSettings()), signupOpen: !!b.open })]]);
   },
+  // ♻️ Repartir de zéro : supprime tous les autres espaces, le social et le contenu de l'espace principal.
+  // Garde : code et connexion de l'espace principal, mot de passe admin, clés et abonnements de notifications, réglages.
+  "admin.reset": async (b) => {
+    if (b.confirm !== "VIDER") fail(400, "Confirmation manquante.");
+    const KEEP = new Set(["nd:auth", "nd:vapid", "nd:admin", "nd:pepper", "nd:settings", "nd:subs"]);
+    const [mainIdx] = await db([["HGET", G.loginrev, "main"]]);
+    let cursor = "0", n = 0;
+    do {
+      const [res] = await db([["SCAN", cursor, "MATCH", "nd:*", "COUNT", 500]]);
+      cursor = String(res[0]);
+      const keys = (res[1] || []).filter(k => !KEEP.has(k));
+      if (keys.length) { await db(keys.map(k => ["DEL", k])); n += keys.length; }
+    } while (cursor !== "0");
+    if (mainIdx) await db([["HSET", G.login, mainIdx, "main"], ["HSET", G.loginrev, "main", mainIdx]]);
+    return { deleted: n };
+  },
   "admin.feed": async () => {
     const [raw] = await db([["HGETALL", G.feed]]);
     const posts = parseHash(raw).sort((a, b) => b.t - a.t).slice(0, 100);

@@ -720,6 +720,9 @@ function adminScreen(){
       </div>`).join("")}
       <details style="margin-top:12px" id="afeedd"><summary>🌍 Modération du fil commun</summary><div id="afeed"><p>Chargement…</p></div></details>
       ${used.length?`<details style="margin-top:12px"><summary>Invitations utilisées (${used.length})</summary>${used.map(i=>`<div class="date"><div class="d"><b>${esc(i.names||i.note||i.code)}</b><div class="faint" style="font-size:12px">utilisée le ${dt(i.used)}</div></div></div>`).join("")}</details>`:""}
+      <div class="card" style="margin-top:16px;border-color:#F2C9CF"><div class="eyebrow" style="color:#B3261E">Zone sensible</div>
+        <p style="margin:0 0 10px">Efface tous les autres couples, le fil commun, les couples amis et tout le contenu de votre espace. Votre code, ta connexion admin et les notifications sont gardés.</p>
+        <button class="btn small ghost" id="areset" style="color:#B3261E">♻️ Réinitialiser l'appli</button></div>
       <div class="row" style="margin-top:16px"><button class="btn small ghost" id="apw">Changer le mot de passe admin</button><button class="btn small ghost" id="aout">Se déconnecter</button></div>
       <p class="faint" style="font-size:12px;margin-top:12px">Tous les espaces partagent la même base Upstash et le même relais d'appels : surveille les quotas gratuits si les couples se multiplient.</p>`;
     const share=code=>shareLink(location.origin+"/?invite="+code,"Créez votre espace à deux sur Nous Deux 💕");
@@ -739,6 +742,11 @@ function adminScreen(){
       try{ const r=await adminApi("admin.delete",{id:b.dataset.del}); toast(`Espace supprimé (${r.deleted} éléments)`); }catch(e){ toast(e.message); }
       load();
     });
+    box.querySelector("#areset").onclick=async()=>{
+      const t=prompt("Tout effacer et repartir de zéro ?\nC'est définitif. Tape VIDER pour confirmer.");
+      if(t!=="VIDER") return;
+      try{ const r=await adminApi("admin.reset",{confirm:"VIDER"}); alert(`Appli réinitialisée (${r.deleted} éléments effacés). Elle va redémarrer.`); location.reload(); }catch(e){ toast(e.message); }
+    };
     box.querySelector("#apw").onclick=async()=>{ const p=prompt("Nouveau mot de passe admin (8 caractères min.) :"); if(!p) return; try{ await adminApi("admin.password",{newPassword:p}); ADMIN_PW=p.trim(); LS.set("nd-admin",ADMIN_PW); toast("Mot de passe changé"); }catch(e){ toast(e.message); } };
     box.querySelector("#aout").onclick=()=>{ LS.del("nd-admin"); ADMIN_PW=""; m.remove(); toast("Déconnecté de l'administration"); };
   };
